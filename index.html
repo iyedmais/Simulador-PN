@@ -1,0 +1,1937 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BROSBNK — Simulador do Plano de Negócios</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{
+  --bg:#F4F6F6; --texto:#28251D; --primaria:#0C4E54; --acento:#20808D;
+  --borda:#D8DCDC; --superficie:#FFFFFF;
+  --comex:#03518F; --remessas:#009743; --cripto:#F7C500; --licenca:#E2231D;
+  --verde:#1B7F4B; --ambar:#B4740A; --vermelho:#B32118;
+  --header-h:64px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg); color:var(--texto);
+  font-family:'Inter','DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased;
+  overflow-wrap:break-word; word-break:normal; hyphens:none;
+}
+table, .kpi-valor, .num, td, th, input{font-variant-numeric:tabular-nums;}
+button{font-family:inherit;}
+
+/* ---------- Cabeçalho ---------- */
+header.topo{
+  position:fixed; top:0; left:0; right:0; height:var(--header-h); z-index:60;
+  background:var(--superficie); border-bottom:1px solid var(--borda);
+  display:flex; align-items:center; gap:16px; padding:0 16px;
+}
+.marca{display:flex; align-items:center; gap:12px; min-width:0;}
+.marca-logo{height:36px; display:block;}
+.marca-nome{font-size:13px; font-weight:600; color:var(--primaria); white-space:nowrap;}
+.marca-sub{font-size:11px; color:#6B7574; white-space:nowrap;}
+.topo-espaco{flex:1;}
+.segmentado{display:inline-flex; background:var(--bg); border:1px solid var(--borda); border-radius:8px; padding:3px;}
+.segmentado button{
+  border:0; background:transparent; color:var(--texto); font-size:13px; font-weight:500;
+  padding:6px 14px; border-radius:6px; cursor:pointer; white-space:nowrap;
+}
+.segmentado button[aria-pressed="true"]{background:var(--primaria); color:#fff;}
+.btn{
+  border:1px solid var(--borda); background:var(--superficie); color:var(--primaria);
+  font-size:13px; font-weight:500; padding:8px 12px; border-radius:8px; cursor:pointer; white-space:nowrap;
+}
+.btn:hover{border-color:var(--acento); color:var(--acento);}
+.btn-primario{background:var(--primaria); color:#fff; border-color:var(--primaria);}
+.btn-primario:hover{background:var(--acento); border-color:var(--acento); color:#fff;}
+.btn-pequeno{padding:5px 9px; font-size:12px;}
+#btnControles{display:none;}
+
+/* ---------- Layout ---------- */
+.corpo{display:flex; align-items:flex-start; padding-top:var(--header-h); min-height:100vh;}
+aside.controles{
+  width:380px; flex:0 0 380px; background:var(--superficie);
+  border-right:1px solid var(--borda);
+  position:sticky; top:var(--header-h); height:calc(100vh - var(--header-h));
+  overflow-y:auto; padding:16px 16px 96px;
+}
+main.resultados{flex:1; min-width:0; padding:16px 20px 120px;}
+
+/* ---------- Cartões e controles ---------- */
+.cartao{background:var(--superficie); border:1px solid var(--borda); border-radius:12px; padding:16px; margin-bottom:16px;}
+aside .cartao{padding:14px; margin-bottom:12px;}
+.cartao-titulo{
+  display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700;
+  color:var(--primaria); text-transform:uppercase; letter-spacing:.4px; margin:0 0 12px;
+}
+.cartao-titulo .pill{margin-left:auto;}
+.pill{font-size:10px; font-weight:600; padding:2px 7px; border-radius:99px; background:var(--bg); color:#6B7574; border:1px solid var(--borda); text-transform:none; letter-spacing:0;}
+.faixa-vertical{width:4px; height:14px; border-radius:2px; display:inline-block;}
+
+.ctl{margin-bottom:14px;}
+.ctl:last-child{margin-bottom:0;}
+.ctl-topo{display:flex; align-items:baseline; gap:6px; margin-bottom:6px;}
+.ctl-rot{font-size:13px; font-weight:500; flex:1; min-width:0;}
+.ctl-val{font-size:13px; font-weight:700; color:var(--primaria); white-space:nowrap;}
+.ctl input[type=range]{width:100%; accent-color:var(--acento); margin:0; height:20px;}
+.ctl-lim{display:flex; justify-content:space-between; font-size:10.5px; color:#8A9392; margin-top:1px;}
+.ctl-num{
+  width:100%; border:1px solid var(--borda); border-radius:6px; padding:5px 8px;
+  font-size:13px; color:var(--texto); background:var(--superficie);
+}
+.linha-num{display:flex; gap:8px; align-items:center;}
+
+.chave{display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none;}
+.chave input{position:absolute; opacity:0; width:0; height:0;}
+.chave .trilho{width:40px; height:22px; border-radius:99px; background:#C8CFCE; position:relative; transition:background .15s; flex:0 0 40px;}
+.chave .trilho::after{content:""; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#fff; transition:left .15s;}
+.chave input:checked + .trilho{background:var(--acento);}
+.chave input:checked + .trilho::after{left:21px;}
+.chave input:disabled + .trilho{opacity:.45; cursor:not-allowed;}
+.chave-rot{font-size:13px; font-weight:600;}
+
+.aviso{border-radius:8px; padding:9px 11px; font-size:12px; line-height:1.45; margin-top:10px; border:1px solid;}
+.aviso-ambar{background:#FDF6E7; border-color:#EBD9A8; color:#7A5406;}
+.aviso-info{background:#EDF4F5; border-color:#C6DDE0; color:#0C4E54;}
+
+/* ---------- Ajuda / tooltips ---------- */
+.ajuda{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:16px; height:16px; flex:0 0 16px; border-radius:50%;
+  border:1px solid var(--borda); background:var(--bg); color:var(--acento);
+  font-size:10px; font-weight:700; cursor:pointer; padding:0; line-height:1;
+}
+.ajuda:hover{background:var(--acento); color:#fff; border-color:var(--acento);}
+#tip{
+  position:fixed; z-index:200; max-width:320px; background:#1E2E30; color:#F4F6F6;
+  border-radius:10px; padding:11px 13px; font-size:12px; line-height:1.5;
+  box-shadow:0 8px 28px rgba(0,0,0,.24); display:none;
+}
+#tip b{color:#8FD3DA;}
+#tip .tip-form{display:block; margin-top:6px; color:#B9C6C7; font-style:italic;}
+#tip .tip-fonte{display:block; margin-top:6px; font-size:11px; color:#9AAAAB;}
+
+/* ---------- KPIs ---------- */
+.kpis{display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin-bottom:16px;}
+.kpi{background:var(--superficie); border:1px solid var(--borda); border-left:3px solid var(--acento); border-radius:10px; padding:11px 12px; min-width:0;}
+.kpi-rot{display:flex; align-items:center; gap:5px; font-size:10.5px; font-weight:600; color:#6B7574; text-transform:uppercase; letter-spacing:.3px; margin-bottom:4px;}
+.kpi-rot span{min-width:0;}
+.kpi-valor{font-size:19px; font-weight:700; color:var(--primaria); letter-spacing:-.3px;}
+.kpi-nota{font-size:10.5px; color:#8A9392; margin-top:2px;}
+
+/* ---------- Abas ---------- */
+.abas{display:flex; gap:4px; border-bottom:1px solid var(--borda); margin-bottom:16px; overflow-x:auto; padding-bottom:0;}
+.abas button{
+  border:0; background:transparent; color:#6B7574; font-size:13.5px; font-weight:600;
+  padding:9px 14px; cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap;
+}
+.abas button[aria-selected="true"]{color:var(--primaria); border-bottom-color:var(--primaria);}
+.painel{display:none;}
+.painel.ativo{display:block;}
+
+/* ---------- Tabelas ---------- */
+.tab-rolagem{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+table.dados{border-collapse:collapse; width:100%; font-size:12.5px; min-width:560px;}
+table.dados th, table.dados td{padding:7px 9px; text-align:right; border-bottom:1px solid var(--borda); white-space:nowrap;}
+table.dados th:first-child, table.dados td:first-child{text-align:left; white-space:normal; min-width:190px;}
+table.dados thead th{background:var(--bg); color:var(--primaria); font-weight:700; font-size:11.5px; text-transform:uppercase; letter-spacing:.3px; border-bottom:1px solid var(--borda);}
+table.dados tr.destaque td{font-weight:700; background:#EDF4F5;}
+table.dados tr.grupo td{background:#FAFBFB; font-weight:600; color:#6B7574; font-size:11.5px; text-transform:uppercase; letter-spacing:.3px;}
+table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:inset 3px 0 0 var(--acento);}
+.neg{color:var(--vermelho);}
+
+/* ---------- Diversos ---------- */
+.grade2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+.grade3{display:grid; grid-template-columns:repeat(3,1fr); gap:16px;}
+.grade4{display:grid; grid-template-columns:repeat(4,1fr); gap:16px;}
+.narrativa{font-size:14px; line-height:1.65; color:#3A3830; margin:0;}
+.narrativa strong{color:var(--primaria);}
+.legenda{display:flex; flex-wrap:wrap; gap:12px; font-size:11.5px; color:#6B7574; margin-top:10px;}
+.legenda i{width:10px; height:10px; border-radius:3px; display:inline-block; margin-right:5px; vertical-align:-1px;}
+.semaforo{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; padding:3px 9px; border-radius:99px;}
+.sem-verde{background:#E6F4EC; color:var(--verde);}
+.sem-ambar{background:#FDF6E7; color:var(--ambar);}
+.sem-vermelho{background:#FBEAE9; color:var(--vermelho);}
+.metrica{padding:12px 0; border-bottom:1px solid var(--borda);}
+.metrica:last-child{border-bottom:0;}
+.metrica-rot{display:flex; align-items:center; gap:6px; font-size:11.5px; color:#6B7574; font-weight:600; text-transform:uppercase; letter-spacing:.3px;}
+.metrica-val{font-size:20px; font-weight:700; color:var(--primaria); margin-top:3px;}
+.metrica-sub{font-size:11.5px; color:#8A9392; margin-top:2px;}
+.moic-par{display:grid; grid-template-columns:1.25fr 1fr; gap:14px; align-items:stretch;}
+.moic-forte{background:var(--primaria); color:#fff; border-radius:12px; padding:18px;}
+.moic-forte .metrica-rot, .moic-forte .metrica-sub{color:#B9D6D9;}
+.moic-forte .metrica-val{color:#fff; font-size:38px;}
+.moic-fraco{background:var(--bg); border:1px solid var(--borda); border-radius:12px; padding:18px;}
+.moic-fraco .metrica-val{font-size:26px;}
+.sigla{font-size:11px; color:#8A9392; font-weight:400; display:block; margin-top:1px;}
+.rodape{
+  position:fixed; bottom:0; left:0; right:0; z-index:55; background:var(--superficie);
+  border-top:1px solid var(--borda); padding:8px 16px; font-size:11.5px; color:#6B7574; text-align:center;
+}
+.faixa-compartilhado{background:#EDF4F5; border-bottom:1px solid #C6DDE0; color:var(--primaria); font-size:12.5px; padding:8px 16px; text-align:center; display:none;}
+.faixa-verificacao{font-size:12px; line-height:1.5;}
+.mono{font-variant-numeric:tabular-nums;}
+
+/* ---------- Glossário ---------- */
+.sobreposicao{position:fixed; inset:0; background:rgba(20,30,31,.42); z-index:90; display:none;}
+.sobreposicao.aberta{display:block;}
+.gaveta{
+  position:fixed; top:0; right:0; bottom:0; width:min(460px,100%); background:var(--superficie);
+  z-index:100; box-shadow:-8px 0 32px rgba(0,0,0,.14); transform:translateX(102%); transition:transform .2s;
+  display:flex; flex-direction:column;
+}
+.gaveta.aberta{transform:none;}
+.gaveta-topo{padding:16px; border-bottom:1px solid var(--borda); display:flex; align-items:center; gap:10px;}
+.gaveta-topo h2{margin:0; font-size:16px; color:var(--primaria); flex:1;}
+.gaveta-corpo{overflow-y:auto; padding:16px; flex:1;}
+.busca{width:100%; border:1px solid var(--borda); border-radius:8px; padding:9px 11px; font-size:13px; margin-bottom:14px;}
+.verbete{padding:12px 0; border-bottom:1px solid var(--borda);}
+.verbete:last-child{border-bottom:0;}
+.verbete h3{margin:0 0 2px; font-size:13.5px; color:var(--primaria);}
+.verbete p{margin:5px 0 0; font-size:12.5px; line-height:1.55; color:#3A3830;}
+
+.gaveta-controles{
+  position:fixed; top:0; left:0; bottom:0; width:min(380px,92%); background:var(--superficie);
+  z-index:100; box-shadow:8px 0 32px rgba(0,0,0,.14); transform:translateX(-102%); transition:transform .2s;
+  overflow-y:auto;
+}
+.modal{
+  position:fixed; z-index:110; top:50%; left:50%; transform:translate(-50%,-50%);
+  background:var(--superficie); border-radius:12px; padding:20px; width:min(380px,92vw);
+  box-shadow:0 16px 48px rgba(0,0,0,.2); display:none;
+}
+.modal.aberto{display:block;}
+.modal h3{margin:0 0 12px; font-size:15px; color:var(--primaria);}
+.cenario-linha{display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--borda);}
+.cenario-linha:last-child{border-bottom:0;}
+.vazio{color:#8A9392; font-size:13px; padding:18px 0; text-align:center;}
+
+@media (max-width:1400px){ .kpis{grid-template-columns:repeat(3,1fr);} }
+@media (max-width:1023px){
+  aside.controles{display:none;}
+  #btnControles{display:inline-block;}
+  main.resultados{padding:12px 12px 130px;}
+  .grade2,.grade3,.grade4{grid-template-columns:1fr;}
+  .moic-par{grid-template-columns:1fr;}
+  .marca-sub{display:none;}
+}
+@media (max-width:760px){
+  :root{--header-h:108px;}
+  header.topo{flex-wrap:wrap; height:auto; min-height:var(--header-h); padding:8px 12px; row-gap:8px; align-content:center;}
+  .topo-espaco{flex:0 0 100%; height:0;}
+  .marca-logo{height:30px;}
+  .marca-nome{font-size:12px;}
+  .segmentado button{padding:6px 11px; font-size:12.5px;}
+  .topo .btn{padding:7px 10px; font-size:12.5px;}
+  .kpis{grid-template-columns:repeat(2,1fr);}
+  .moic-forte .metrica-val{font-size:30px;}
+}
+@media (max-width:430px){
+  .marca-nome, .topo .btn span.rot-longo{display:none;}
+  .kpi-valor{font-size:17px;}
+  table.dados th:first-child, table.dados td:first-child{min-width:150px;}
+}
+</style>
+</head>
+<body>
+
+<header class="topo">
+  <button class="btn btn-pequeno" id="btnControles" data-testid="btn-abrir-controles">Controles</button>
+  <div class="marca">
+    <svg class="marca-logo" id="logoMarca" viewBox="0 0 675 179" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="BROSBNK">
+<g clip-path="url(#clip0_18315_8804)">
+<path d="M38.4729 23.1168L0 0.452881V85.2757H38.4729V23.1168Z" fill="black" style="fill:black;fill-opacity:1;"/>
+<path d="M139.368 92.8956C138.536 103.967 134.129 114.048 127.292 121.992L154.626 149.326C168.391 134.337 177.082 114.623 178 92.8956H139.368Z" fill="#E2231D" style="fill:#E2231D;fill:color(display-p3 0.8863 0.1373 0.1137);fill-opacity:1;"/>
+<path d="M56.0938 127.378L28.76 154.712C43.7489 168.477 63.4628 177.168 85.1902 178.086V139.454C74.1184 138.621 64.0381 134.215 56.0938 127.378Z" fill="#F7C500" style="fill:#F7C500;fill:color(display-p3 0.9686 0.7725 0.0000);fill-opacity:1;"/>
+<path d="M92.8101 139.454V178.086C114.538 177.174 134.251 168.477 149.24 154.712L121.907 127.378C113.962 134.215 103.882 138.621 92.8101 139.454Z" fill="#03518F" style="fill:#03518F;fill:color(display-p3 0.0118 0.3176 0.5608);fill-opacity:1;"/>
+<path d="M38.6321 92.8956H0C0.911942 114.623 9.60905 134.337 23.3739 149.326L50.7076 121.992C43.8711 114.048 39.4644 103.967 38.6321 92.8956Z" fill="#009743" style="fill:#009743;fill:color(display-p3 0.0000 0.5922 0.2627);fill-opacity:1;"/>
+<path d="M154.626 28.8455C152.906 26.9727 151.113 25.1794 149.24 23.4595C134.251 9.69474 114.537 1.00375 92.81 0.0856858C91.5492 0.0306021 90.2761 0 89.0031 0C87.73 0 86.457 0.0306021 85.1962 0.0856858C63.4687 0.997627 43.7548 9.69474 28.7659 23.4595C26.8931 25.1794 25.0998 26.9727 23.38 28.8455C9.60905 43.8344 0.911942 63.5483 0 85.2757H38.6321C39.4644 74.2039 43.8711 64.1236 50.7076 56.1793C52.3663 54.2514 54.1657 52.4519 56.0936 50.7933C64.0379 43.9568 74.1182 39.5501 85.19 38.7177C86.4509 38.6259 87.7178 38.5586 88.9969 38.5586C90.2761 38.5586 91.5492 38.6198 92.8038 38.7177C103.876 39.5501 113.956 43.9568 121.9 50.7933C123.828 52.4519 125.628 54.2514 127.286 56.1793C134.123 64.1236 138.529 74.2039 139.362 85.2757H177.994C177.082 63.5483 168.385 43.8344 154.62 28.8455H154.626Z" fill="black" style="fill:black;fill-opacity:1;"/>
+</g>
+<g filter="url(#filter0_d_18315_8804)">
+<path d="M254.615 80.0884C257.624 82.2169 259.973 84.8591 261.661 88.0151C263.423 91.1711 264.303 94.5839 264.303 98.2537C264.303 102.731 263.019 106.841 260.45 110.584C257.881 114.254 254.468 117.006 250.211 118.841C247.055 120.236 243.789 120.933 240.413 120.933H207.936C207.202 120.933 206.541 120.676 205.954 120.162C205.44 119.575 205.184 118.878 205.184 118.07V46.4001C205.184 45.6661 205.44 45.0423 205.954 44.5285C206.541 43.9413 207.202 43.6478 207.936 43.6478H235.679C239.129 43.6478 242.505 44.345 245.808 45.7395C249.918 47.6478 253.257 50.4368 255.826 54.1065C258.395 57.7763 259.679 61.8497 259.679 66.3268C259.679 71.3911 257.991 75.9783 254.615 80.0884ZM219.385 58.7304V73.9232C219.385 74.3636 219.532 74.7673 219.826 75.1342C220.193 75.4278 220.596 75.5746 221.037 75.5746H235.679C238.395 75.5746 240.707 74.6939 242.615 72.9324C244.523 71.0975 245.477 68.8957 245.477 66.3268C245.477 63.758 244.523 61.5928 242.615 59.8314C240.707 57.9965 238.395 57.079 235.679 57.079H221.037C220.596 57.079 220.193 57.2625 219.826 57.6295C219.532 57.9231 219.385 58.2901 219.385 58.7304ZM240.303 107.501C243.019 107.501 245.331 106.584 247.239 104.749C249.147 102.914 250.101 100.749 250.101 98.2537C250.101 95.6849 249.147 93.5197 247.239 91.7582C245.331 89.9233 243.019 89.0059 240.303 89.0059H221.037C220.596 89.0059 220.193 89.1894 219.826 89.5564C219.532 89.8499 219.385 90.2169 219.385 90.6573V105.85C219.385 106.29 219.532 106.694 219.826 107.061C220.193 107.355 220.596 107.501 221.037 107.501H240.303ZM327.613 65.4461C327.613 69.7764 326.512 73.7764 324.311 77.4462C322.182 81.1159 319.32 84.015 315.723 86.1435C315.063 86.5105 314.622 87.0609 314.402 87.7949C314.182 88.5288 314.255 89.2261 314.622 89.8866L330.145 116.749C330.439 117.336 330.549 117.96 330.476 118.621C330.402 119.208 330.109 119.722 329.595 120.162C329.081 120.602 328.457 120.823 327.723 120.823H317.705C316.677 120.823 315.87 120.382 315.283 119.502L298.769 90.7674C298.255 89.8132 297.448 89.3362 296.347 89.3362H292.934C292.2 89.3362 291.54 89.6298 290.953 90.2169C290.439 90.7307 290.182 91.3912 290.182 92.1986V118.07C290.182 118.804 289.888 119.465 289.301 120.052C288.787 120.566 288.164 120.823 287.43 120.823H278.732C277.998 120.823 277.338 120.566 276.751 120.052C276.237 119.465 275.98 118.804 275.98 118.07V46.6202C275.98 45.8129 276.237 45.1524 276.751 44.6386C277.338 44.0514 277.998 43.7578 278.732 43.7578H307.466C309.448 43.7578 311.356 44.0514 313.191 44.6386C315.1 45.1524 316.861 45.9597 318.476 47.0606C320.164 48.1615 321.595 49.5194 322.769 51.134C325.999 55.3176 327.613 60.0882 327.613 65.4461ZM292.934 55.7579C292.2 55.7579 291.54 56.0148 290.953 56.5286C290.439 57.0423 290.182 57.7029 290.182 58.5103V72.3819C290.182 73.1893 290.439 73.8498 290.953 74.3636C291.54 74.8774 292.2 75.1342 292.934 75.1342H303.613C306.476 75.1342 308.861 74.07 310.769 71.9416C312.751 69.8131 313.595 67.3177 313.301 64.4553C313.228 63.2075 312.898 62.0699 312.31 61.0424C311.723 59.9415 310.953 59.024 309.999 58.2901C309.118 57.4827 308.09 56.8589 306.916 56.4185C305.742 55.9781 304.531 55.7579 303.283 55.7579H292.934ZM387.616 43.7578C395.689 46.6203 402.258 51.5744 407.322 58.6203C412.46 65.5929 415.029 73.4828 415.029 82.2903C415.029 91.0977 412.46 99.061 407.322 106.18C402.184 113.226 395.542 118.107 387.395 120.823C383.065 122.291 378.661 123.025 374.184 123.025C369.781 123.025 365.414 122.291 361.083 120.823C352.936 118.107 346.294 113.226 341.156 106.18C336.019 99.061 333.45 91.0977 333.45 82.2903C333.45 76.492 334.624 70.9874 336.973 65.7764C339.322 60.4919 342.551 55.9781 346.661 52.235C350.845 48.4184 355.579 45.5927 360.863 43.7578C365.267 42.2165 369.707 41.4459 374.184 41.4459C378.735 41.4459 383.212 42.2165 387.616 43.7578ZM374.184 108.823C381.524 108.823 387.799 106.254 393.01 101.116C398.221 95.905 400.827 89.6298 400.827 82.2903C400.827 74.9507 398.221 68.7122 393.01 63.5745C387.799 58.3635 381.524 55.7579 374.184 55.7579C366.918 55.7579 360.68 58.3635 355.469 63.5745C350.257 68.7122 347.652 74.9507 347.652 82.2903C347.652 87.0609 348.826 91.5013 351.175 95.6115C353.597 99.7216 356.826 102.951 360.863 105.3C364.973 107.648 369.414 108.823 374.184 108.823ZM452.61 69.5195C454.298 70.1067 455.619 70.5837 456.573 70.9507C457.527 71.2443 458.922 71.7948 460.757 72.6021C462.665 73.4095 464.206 74.2168 465.38 75.0241C466.555 75.7581 467.913 76.7856 469.454 78.1067C470.995 79.3545 472.243 80.6756 473.197 82.0701C474.151 83.4646 474.995 85.1894 475.729 87.2444C476.537 89.2995 477.087 91.4646 477.381 93.7399C478.188 101.079 476.096 107.575 471.105 113.226C470.738 113.74 469.858 114.584 468.463 115.758C463.766 119.942 458.298 122.327 452.059 122.914C451.105 122.988 450.114 123.025 449.087 123.025C442.408 123.025 436.463 121.08 431.252 117.19C431.032 116.969 430.738 116.713 430.371 116.419C430.077 116.052 429.857 115.832 429.71 115.758C425.454 111.942 422.701 107.465 421.454 102.327C421.233 101.52 421.343 100.786 421.784 100.125C422.298 99.4647 422.958 99.0977 423.765 99.0243L432.573 98.1436C433.233 98.0702 433.821 98.217 434.334 98.584C434.922 98.9509 435.289 99.4647 435.435 100.125C436.243 102.767 437.821 105.006 440.169 106.841C443.252 109.116 446.738 110.07 450.628 109.703C454.518 109.336 457.674 107.722 460.096 104.859C462.591 101.997 463.619 98.7674 463.179 95.1711C462.958 93.2628 462.481 91.6481 461.747 90.327C461.087 88.9325 460.023 87.7582 458.555 86.804C457.087 85.7765 455.582 84.9692 454.041 84.382C452.573 83.7215 450.555 82.9875 447.986 82.1802C444.903 81.226 442.628 80.382 441.16 79.648C435.215 76.7856 431.105 73.0792 428.83 68.5287C426.554 63.9782 426.371 59.0607 428.279 53.7763C429.821 49.5194 432.683 46.1065 436.867 43.5377C442.591 40.0147 448.903 39.0606 455.802 40.6753C457.857 41.1156 460.023 42.0698 462.298 43.5377C467.876 47.0606 471.215 51.7212 472.316 57.5194C472.463 58.4002 472.28 59.1708 471.766 59.8314C471.252 60.4919 470.555 60.8222 469.674 60.8222L460.867 61.0424C459.399 61.0424 458.481 60.4185 458.114 59.1708C457.747 57.9231 457.05 56.8222 456.023 55.868C454.995 54.9139 454.188 54.3267 453.601 54.1065C453.087 53.813 452.646 53.6295 452.279 53.5561C450.078 53.0423 447.949 53.1891 445.894 53.9965C443.839 54.7304 442.445 56.0882 441.711 58.0699C441.564 58.5103 441.454 58.8772 441.38 59.1708C441.307 59.4644 441.234 59.9415 441.16 60.602C441.087 61.1892 441.16 61.7396 441.38 62.2534C441.6 62.7672 441.931 63.3543 442.371 64.0149C442.812 64.602 443.472 65.2259 444.353 65.8865C445.234 66.547 446.334 67.2076 447.656 67.8681C448.39 68.1617 450.041 68.7122 452.61 69.5195Z" fill="black" style="fill:black;fill-opacity:1;"/>
+</g>
+<path d="M539.578 101.446C539.578 106.804 537.633 111.428 533.744 115.318C529.927 119.135 525.303 121.043 519.872 121.043H490.147C489.413 121.043 489.046 120.676 489.046 119.942V45.079C489.046 44.345 489.413 43.978 490.147 43.978H515.248C520.679 43.978 525.303 45.9597 529.12 49.923C533.01 53.8864 534.955 58.6203 534.955 64.125C534.955 67.2076 534.294 70.3636 532.973 73.5929C531.652 76.7489 529.927 79.2444 527.799 81.0792C527.432 81.3728 527.468 81.6297 527.909 81.8499C531.285 83.4646 534.074 86.1435 536.276 89.8866C538.478 93.5564 539.578 97.4096 539.578 101.446ZM494.661 50.4735V79.3178C494.661 79.8315 494.954 80.0884 495.541 80.0884H511.725C514.881 80.0884 517.817 79.3911 520.532 77.9966C523.248 76.5287 525.413 74.5104 527.028 71.9416C528.569 69.4461 529.303 66.8406 529.23 64.125C529.23 61.4094 528.606 59.024 527.358 56.969C526.184 54.8405 524.496 53.079 522.294 51.6845C520.165 50.29 517.817 49.5928 515.248 49.5928H495.541C494.954 49.5928 494.661 49.8863 494.661 50.4735ZM494.661 86.5839V114.547C494.661 115.135 494.954 115.428 495.541 115.428H519.872C524.569 115.428 528.312 113.557 531.101 109.813C533.964 106.07 534.698 101.85 533.303 97.1528C532.276 93.7032 530.257 90.9509 527.248 88.8958C524.312 86.7674 521.009 85.7031 517.34 85.7031H495.541C494.954 85.7031 494.661 85.9967 494.661 86.5839ZM557.074 63.1341V119.612C557.074 119.979 556.927 120.309 556.633 120.602C556.34 120.896 556.009 121.043 555.642 121.043H552.89C552.523 121.043 552.193 120.896 551.899 120.602C551.606 120.309 551.459 119.979 551.459 119.612V45.4092C551.459 45.0423 551.532 44.8221 551.679 44.7487C551.899 44.6753 552.12 44.8221 552.34 45.1891L595.496 103.428C595.716 103.722 595.9 103.832 596.046 103.758C596.267 103.685 596.377 103.465 596.377 103.098V45.4092C596.377 45.189 596.413 44.9689 596.487 44.7487C596.634 44.5285 596.817 44.345 597.037 44.1982C597.257 44.0514 597.514 43.978 597.808 43.978H600.56C600.927 43.978 601.258 44.1248 601.551 44.4184C601.845 44.712 601.991 45.0423 601.991 45.4092V120.823C601.991 121.263 601.881 121.483 601.661 121.483C601.514 121.557 601.331 121.447 601.111 121.153L557.954 62.914C557.734 62.547 557.514 62.4002 557.294 62.4736C557.147 62.547 557.074 62.7672 557.074 63.1341ZM622.9 96.1619V119.612C622.9 119.979 622.753 120.309 622.459 120.602C622.166 120.896 621.835 121.043 621.468 121.043H618.716C618.349 121.043 618.019 120.896 617.725 120.602C617.432 120.309 617.285 119.979 617.285 119.612V45.4092C617.285 45.0423 617.432 44.712 617.725 44.4184C618.019 44.1248 618.349 43.978 618.716 43.978H621.468C621.835 43.978 622.166 44.1248 622.459 44.4184C622.753 44.712 622.9 45.0423 622.9 45.4092V84.9325C622.9 85.2995 622.973 85.5196 623.12 85.593C623.34 85.6664 623.56 85.5563 623.78 85.2628L657.138 45.079C657.799 44.345 658.606 43.978 659.56 43.978H664.184C664.551 43.978 664.771 44.0881 664.845 44.3083C664.992 44.5285 664.955 44.7854 664.735 45.079L635.45 80.749C634.79 81.4829 634.79 82.2169 635.45 82.9508L667.377 119.942C667.597 120.236 667.671 120.492 667.597 120.713C667.524 120.933 667.267 121.043 666.827 121.043H662.313C661.359 121.043 660.551 120.676 659.891 119.942L631.707 87.1343C631.046 86.4004 630.386 86.4004 629.725 87.1343L623.89 93.7399C623.23 94.4004 622.9 95.2078 622.9 96.1619Z" fill="black" style="fill:black;fill-opacity:1;"/>
+<defs>
+<filter id="filter0_d_18315_8804" x="205.184" y="38.2532" width="281.408" height="92.7714" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dx="4" dy="4"/>
+<feGaussianBlur stdDeviation="2"/>
+<feComposite in2="hardAlpha" operator="out"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.47 0"/>
+<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_18315_8804"/>
+<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_18315_8804" result="shape"/>
+</filter>
+<clipPath id="clip0_18315_8804">
+<rect width="178" height="178.086" fill="white" style="fill:white;fill-opacity:1;"/>
+</clipPath>
+</defs>
+</svg>
+    <div>
+      <div class="marca-nome">Simulador do Plano de Negócios</div>
+      <div class="marca-sub">Operação Brasil</div>
+    </div>
+  </div>
+  <div class="topo-espaco"></div>
+  <div class="segmentado" role="group" aria-label="Modo de exibição">
+    <button id="modoApresentacao" data-testid="modo-apresentacao" aria-pressed="true">Apresentação</button>
+    <button id="modoAvancado" data-testid="modo-avancado" aria-pressed="false">Avançado</button>
+  </div>
+  <button class="btn btn-pequeno" id="btnGlossario" data-testid="btn-glossario">Glossário</button>
+  <button class="btn btn-pequeno" id="btnSalvar" data-testid="btn-salvar-cenario">Salvar <span class="rot-longo">cenário</span></button>
+  <button class="btn btn-pequeno" id="btnXlsx" data-testid="btn-exportar-xlsx">Exportar <span class="rot-longo">planilha</span></button>
+  <button class="btn btn-pequeno btn-primario" id="btnPdf" data-testid="btn-exportar-pdf">Exportar PDF</button>
+</header>
+
+<div class="corpo">
+  <aside class="controles" id="painelControles" data-testid="painel-controles"></aside>
+  <main class="resultados">
+    <div class="faixa-compartilhado" id="faixaCompartilhado" data-testid="faixa-compartilhado"></div>
+    <div class="kpis" id="kpis" data-testid="kpis"></div>
+    <div class="abas" role="tablist" id="abas"></div>
+    <div id="paineis"></div>
+  </main>
+</div>
+
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno.</div>
+
+<div class="sobreposicao" id="sobreposicao"></div>
+<aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
+  <div class="gaveta-topo">
+    <h2>Glossário</h2>
+    <button class="btn btn-pequeno" id="fecharGlossario">Fechar</button>
+  </div>
+  <div class="gaveta-corpo">
+    <input class="busca" id="buscaGlossario" placeholder="Buscar termo…" data-testid="busca-glossario">
+    <div id="listaGlossario"></div>
+  </div>
+</aside>
+
+<div class="modal" id="modalSalvar">
+  <h3>Salvar cenário</h3>
+  <input class="busca" id="nomeCenario" placeholder="Nome do cenário" data-testid="input-nome-cenario">
+  <div style="display:flex; gap:8px; justify-content:flex-end;">
+    <button class="btn" id="cancelarSalvar">Cancelar</button>
+    <button class="btn btn-primario" id="confirmarSalvar" data-testid="btn-confirmar-salvar">Salvar</button>
+  </div>
+</div>
+
+<div id="tip" role="tooltip"></div>
+
+<script>
+"use strict";
+/* ==========================================================================
+   BROSBNK — Simulador do Plano de Negócios (Operação Brasil)
+   Todos os números vêm da especificação. Nada é digitado fora dela.
+   ========================================================================== */
+
+/* ---------- 1. Constantes da especificação ---------- */
+
+var F_CLI_PADRAO = [0.100, 0.250, 0.450, 0.700, 1.000];
+var F_TK_PADRAO  = [0.666, 0.811, 0.958, 1.007, 1.000];
+
+var OPEX_CATEGORIAS = [
+  { id:'tec',   nome:'Tecnologia e infraestrutura',       v:[330.0,396.0,508.2,599.6,670.6] },
+  { id:'eng',   nome:'Equipe de produto e engenharia',    v:[375.0,450.0,577.5,681.4,762.0] },
+  { id:'comp',  nome:'Compliance e prevenção à lavagem',  v:[195.0,234.0,300.3,354.3,396.2] },
+  { id:'jur',   nome:'Jurídico e regulatório',            v:[105.0,126.0,161.7,190.8,213.4] },
+  { id:'atend', nome:'Atendimento e operações',           v:[165.0,198.0,254.1,299.8,335.3] },
+  { id:'fin',   nome:'Financeiro e contabilidade',        v:[ 90.0,108.0,138.6,163.5,182.9] },
+  { id:'adm',   nome:'Administrativo e escritório',       v:[ 75.0, 90.0,115.5,136.3,152.4] },
+  { id:'lic',   nome:'Licenças e taxas regulatórias',     v:[ 60.0, 72.0, 92.4,109.0,121.9] },
+  { id:'aud',   nome:'Auditoria e certificações',         v:[ 45.0, 54.0, 69.3, 81.8, 91.4] },
+  { id:'seg',   nome:'Segurança da informação',           v:[ 45.0, 54.0, 69.3, 81.8, 91.4] },
+  { id:'out',   nome:'Outros',                            v:[ 15.0, 18.0, 23.1, 27.2, 30.5] }
+];
+
+var MERCADO = {
+  tamComex:        { valor:3300,   fonte:'MDIC/SECEX 2025 (US$ 628,49 bi × 5,25)' },
+  samComexMpe:     { valor:39.62,  fonte:'MDIC/SECEX 2025, soma dos 4 perfis fiscais (US$ 7.547,5 mi × 5,25)' },
+  samComexMedias:  { valor:99.1,   fonte:'Funcex/RBCE 137' },
+  universoMpe:     { valor:41938,  fonte:'MDIC/SECEX 2025' },
+  tamRemessas:     { valor:828,    fonte:'BCB, Balanço de Pagamentos 2025 — US$ 146,1 bi × 5,67, visão conservadora' },
+  tamRemessasPjMin:{ valor:621,    fonte:'75–80% do total, estimativa por rubrica' },
+  tamRemessasPjMax:{ valor:663,    fonte:'75–80% do total, estimativa por rubrica' },
+  tamCripto:       { valor:505.5,  fonte:'Receita Federal 2025' },
+  samCripto:       { valor:404,    fonte:'recorte' }
+};
+
+var INVESTIMENTO_TOTAL = 17;   // R$ milhões
+var PARCELA_PRIMARIA   = 12;   // R$ milhões
+var CORES = { comex:'#03518F', remessas:'#009743', cripto:'#F7C500', licenca:'#E2231D' };
+
+/* ---------- 2. Estado ---------- */
+
+function estadoPadrao(){
+  return {
+    modo:'apresentacao',
+    // COMEX
+    clientesMPE5:4000, tkMPE5:733, clientesMed5:50, tkMed5:4200, takeComex:0.0145,
+    // Remessas
+    clientesRem5:3000, tkRem5:419, takeRem:0.0145,
+    // Cripto
+    criptoOn:false, tpvCripto5:3.30, takeCripto:0.0045, custoLiqCripto:0.0010,
+    // Licença própria
+    licencaOn:false, ganhoCripto:0.0010, ganhoComex:0.0000,
+    // Custos e estrutura
+    custoProvedores:0.0040, aliquota:0.080, multOpex:1.00, cac:524, cacRem:524,
+    opexCustom:null,
+    // Retenção
+    churn:0.020,
+    // Saída e rodada
+    multiploSaida:10, pctVendido:0.20, taxaDesconto:0.15,
+    // Curva
+    curvaDestravada:false, fCli:F_CLI_PADRAO.slice(), fTk:F_TK_PADRAO.slice()
+  };
+}
+
+var S = estadoPadrao();
+var CENARIOS = [];        // apenas em memória — nenhum dado é gravado no navegador
+var avisoLicenca = false; // mostrado quando a licença é desligada junto com a cripto
+var SOMENTE_LEITURA = false; // ligado quando a página é aberta por um link travado
+var abaAtiva = 'resumo';
+
+/* ---------- 3. Formatação pt-BR ---------- */
+
+function nf(v, d){
+  if(!isFinite(v)) return '—';
+  return v.toLocaleString('pt-BR',{minimumFractionDigits:d, maximumFractionDigits:d});
+}
+var fmtBi   = function(v,d){ return 'R$ ' + nf(v, d===undefined?2:d) + ' bi'; };
+var fmtMi   = function(v,d){ return 'R$ ' + nf(v, d===undefined?2:d) + ' mi'; };
+var fmtMil  = function(v){ return 'R$ ' + nf(v,1) + ' mil'; };
+var fmtRS   = function(v,d){ return 'R$ ' + nf(v, d===undefined?0:d); };
+var fmtPct  = function(v,d){ return nf(v*100, d===undefined?1:d).replace('.',',') + '%'; };
+var fmtX    = function(v,d){ return nf(v, d===undefined?2:d) + 'x'; };
+var fmtInt  = function(v){ return nf(Math.round(v),0); };
+function dataHoraBR(dt){
+  dt = dt || new Date();
+  return dt.toLocaleDateString('pt-BR') + ' às ' + dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+
+/* ---------- 4. Modelo de cálculo (seção 5 da especificação) ---------- */
+
+function opexBaseAno(i){                       // i = 0..4, resultado em R$ milhões
+  var soma = 0;
+  for(var k=0;k<OPEX_CATEGORIAS.length;k++){
+    var linha = (S.opexCustom && S.opexCustom[k]) ? S.opexCustom[k] : OPEX_CATEGORIAS[k].v;
+    soma += linha[i];
+  }
+  return soma / 1000;
+}
+function opexCategoriaValor(k,i){
+  return (S.opexCustom && S.opexCustom[k]) ? S.opexCustom[k][i] : OPEX_CATEGORIAS[k].v[i];
+}
+
+function calcular(){
+  var m = { anos:[1,2,3,4,5] };
+  var i, a = [];
+  var fCli = S.fCli, fTk = S.fTk;
+
+  for(i=0;i<5;i++){
+    var o = {};
+    // 5.1 — curva por ano
+    o.clientesMPE = Math.round(S.clientesMPE5 * fCli[i]);
+    o.tkMPE       = S.tkMPE5 * fTk[i];
+    o.tpvComexMPE = o.clientesMPE * o.tkMPE / 1e6;              // R$ bi
+    o.clientesMed = Math.round(S.clientesMed5 * fCli[i]);
+    o.tkMed       = S.tkMed5 * fTk[i];
+    o.tpvComexMed = o.clientesMed * o.tkMed / 1e6;
+    o.tpvComex    = o.tpvComexMPE + o.tpvComexMed;
+    o.clientesRem = Math.round(S.clientesRem5 * fCli[i]);
+    o.tkRem       = S.tkRem5 * fTk[i];
+    o.tpvRem      = o.clientesRem * o.tkRem / 1e6;
+    o.tpvCripto   = S.criptoOn ? S.tpvCripto5 * fCli[i] : 0;
+    o.tpvTotal    = o.tpvComex + o.tpvRem + o.tpvCripto;
+
+    // 5.2 — P&L (R$ milhões)
+    o.receitaComex  = o.tpvComex  * 1000 * S.takeComex;
+    o.receitaRem    = o.tpvRem    * 1000 * S.takeRem;
+    o.receitaCripto = o.tpvCripto * 1000 * S.takeCripto;
+    o.receitaBruta  = o.receitaComex + o.receitaRem + o.receitaCripto;
+    o.custoFiat     = (o.tpvComex + o.tpvRem) * 1000 * S.custoProvedores;
+    o.custoCripto   = o.tpvCripto * 1000 * S.custoLiqCripto;
+    o.custoExecucao = o.custoFiat + o.custoCripto;
+    o.tributos      = o.receitaBruta * S.aliquota;
+    o.margemContrib = o.receitaBruta - o.custoExecucao - o.tributos;
+    o.opex          = opexBaseAno(i) * S.multOpex;
+    o.totalClientes = o.clientesMPE + o.clientesMed + o.clientesRem;
+    a.push(o);
+  }
+
+  for(i=0;i<5;i++){
+    var c = a[i], p = i>0 ? a[i-1] : null;
+    c.novosClientes = p ? Math.max(0, c.totalClientes - p.totalClientes) : c.totalClientes;
+    c.novosComex    = p ? Math.max(0, (c.clientesMPE + c.clientesMed) - (p.clientesMPE + p.clientesMed))
+                        : (c.clientesMPE + c.clientesMed);
+    c.novosRem      = p ? Math.max(0, c.clientesRem - p.clientesRem) : c.clientesRem;
+    c.gtm           = (c.novosComex * S.cac + c.novosRem * S.cacRem) / 1e6;
+    c.ganhoLicenca  = S.licencaOn ? (c.tpvCripto*1000*S.ganhoCripto + c.tpvComex*1000*S.ganhoComex) : 0;
+    c.ebitda        = c.margemContrib - c.opex - c.gtm + c.ganhoLicenca;
+    c.margemEbitda  = c.receitaBruta > 0 ? c.ebitda / c.receitaBruta : 0;
+    c.margemPorCliente = c.totalClientes > 0 ? c.margemContrib * 1e6 / c.totalClientes : 0;
+    c.paybackDias   = c.margemPorCliente > 0 ? S.cac / (c.margemPorCliente/365) : Infinity;
+  }
+  m.ano = a;
+  var a5 = a[4];
+  m.a5 = a5;
+
+  // 5.3 — break-even
+  m.breakEven = null;
+  for(i=0;i<5;i++){ if(a[i].ebitda > 0){ m.breakEven = i+1; break; } }
+
+  // acumulados
+  var chaves = ['tpvComex','tpvRem','tpvCripto','tpvTotal','receitaComex','receitaRem','receitaCripto',
+                'receitaBruta','custoFiat','custoCripto','custoExecucao','tributos','margemContrib',
+                'opex','gtm','ganhoLicenca','ebitda'];
+  m.acum = {};
+  chaves.forEach(function(k){ m.acum[k] = a.reduce(function(s,o){ return s + o[k]; },0); });
+  m.acum.margemEbitda = m.acum.receitaBruta > 0 ? m.acum.ebitda/m.acum.receitaBruta : 0;
+
+  // 5.5 — mercado e penetração
+  m.pen = {
+    comexContagem: S.clientesMPE5 / MERCADO.universoMpe.valor,
+    comexValor:    a5.tpvComexMPE / MERCADO.samComexMpe.valor,
+    medias:        a5.tpvComexMed / MERCADO.samComexMedias.valor,
+    remessas:      a5.tpvRem / MERCADO.tamRemessas.valor,
+    cripto:        a5.tpvCripto / MERCADO.samCripto.valor
+  };
+  m.tkUniverso   = MERCADO.samComexMpe.valor * 1e6 / MERCADO.universoMpe.valor;  // R$ mil por empresa
+  m.capturaTicket= S.tkMPE5 / m.tkUniverso;
+  m.gapPenetracao= m.pen.comexContagem - m.pen.comexValor;
+
+  // 5.6 — métricas por cliente
+  var ltvN = 0, ltvD = 0;
+  for(var k2=0;k2<5;k2++){
+    var base = a5.margemPorCliente * Math.pow(1 - S.churn, k2);
+    ltvN += base;
+    ltvD += base / Math.pow(1 + S.taxaDesconto, k2);
+  }
+  m.ltvNominal = ltvN;
+  m.ltvDescontado = ltvD;
+  m.ltvSobreCac = S.cac > 0 ? ltvN / S.cac : 0;
+  m.ltvDescSobreCac = S.cac > 0 ? ltvD / S.cac : 0;
+
+  // 5.7 — retorno
+  m.ebitdaAno5   = a5.ebitda;
+  m.valuation    = m.ebitdaAno5 * S.multiploSaida;
+  m.participacao = m.valuation * S.pctVendido;
+  m.moicTotal    = m.participacao / INVESTIMENTO_TOTAL;
+  m.moicPrimario = m.participacao / PARCELA_PRIMARIA;
+  m.tirTotal     = m.moicTotal    > 0 ? Math.pow(m.moicTotal, 1/5) - 1 : -1;
+  m.tirPrimario  = m.moicPrimario > 0 ? Math.pow(m.moicPrimario, 1/5) - 1 : -1;
+
+  // 5.8 — sensibilidade
+  m.sensibilidade = [];
+  for(var mult=6; mult<=16; mult+=2){
+    var val = m.ebitdaAno5 * mult, part = val * S.pctVendido;
+    var mt = part/INVESTIMENTO_TOTAL, mp = part/PARCELA_PRIMARIA;
+    m.sensibilidade.push({
+      multiplo:mult, valuation:val, participacao:part,
+      moicTotal:mt, moicPrimario:mp,
+      tir: mt>0 ? Math.pow(mt,1/5)-1 : -1
+    });
+  }
+  return m;
+}
+
+var M = calcular();
+
+/* ---------- 5. Glossário (texto aprovado pelo usuário) ---------- */
+
+var GLOSSARIO = [
+  ['All-in', '', 'Preço fechado, com tudo incluído. O cliente paga o percentual combinado e não recebe tarifas adicionais depois.'],
+  ['BaaS', 'Banking as a Service', 'A empresa oferece a própria estrutura financeira para que outros negócios ofereçam serviços bancários aos seus clientes, sem precisar construir nada.'],
+  ['Break-even', '', 'O ponto em que a operação passa a se sustentar sozinha, sem consumir o dinheiro do investimento. No cenário atual, dentro do Ano {BREAKEVEN}.'],
+  ['CAC', 'Customer Acquisition Cost', 'Quanto custa conquistar um cliente novo, somando comercial, marketing e eventos. {CAC} no cenário atual.'],
+  ['Churn', '', 'Percentual de clientes perdidos por ano. No cenário atual, {CHURN} ao ano, considerando o cliente perdido apenas após 18 meses sem operar.'],
+  ['Coorte', '', 'Grupo de clientes que entrou no mesmo período. Serve para acompanhar como cada "turma" se comporta ao longo do tempo, em vez de olhar só a média geral.'],
+  ['Custo de execução', '', 'O que se paga aos parceiros para que a operação aconteça: provedor de câmbio e tarifas de liquidação. O custo com provedores tem teto contratual de 0,40% do volume; com as tarifas de liquidação, o efetivo fica em torno de 0,42%.'],
+  ['EBITDA', 'Earnings Before Interest, Taxes, Depreciation and Amortization', 'O quanto sobra da operação antes de contas financeiras e contábeis. Permite comparar empresas sem misturar dívida e impostos sobre lucro.'],
+  ['FX', 'Foreign Exchange', 'Câmbio. A troca de uma moeda por outra.'],
+  ['GTM', 'Go To Market', 'O conjunto de gastos para conquistar clientes.'],
+  ['Liquidação', '', 'O momento em que o dinheiro efetivamente troca de mãos e a operação se encerra.'],
+  ['Liquidação híbrida', '', 'Modelo em que parte do trajeto do dinheiro usa o sistema financeiro tradicional e parte usa infraestrutura de ativos digitais, escolhendo em cada trecho o caminho mais rápido ou mais barato.'],
+  ['LTV', 'Lifetime Value', 'Quanto um cliente gera de margem ao longo do tempo em que permanece na base. {LTV} no cenário atual, considerando cinco anos.'],
+  ['Margem de contribuição', '', 'O que sobra de cada real faturado depois do custo direto da operação e dos impostos sobre faturamento, antes das despesas da estrutura.'],
+  ['MOIC', 'Multiple on Invested Capital', 'Quantas vezes o dinheiro investido se multiplica até a saída. Não considera o tempo.'],
+  ['MPE', 'micro e pequena empresa', 'Empresa de menor porte, classificação usada pelas estatísticas oficiais de comércio exterior.'],
+  ['Múltiplo de saída', '', 'O número pelo qual se multiplica o resultado operacional para estimar quanto a empresa vale. O cenário atual usa {MULTIPLO} como referência ilustrativa.'],
+  ['OPEX', 'Operational Expenditure', 'O custo de manter a empresa funcionando: equipe, tecnologia, compliance, atendimento, escritório.'],
+  ['Orquestração', '', 'A capacidade de coordenar vários provedores, moedas e rotas de pagamento por trás de uma interface única, escolhendo o melhor caminho para cada operação sem que o cliente precise saber disso. É a tese central do plano: quanto mais complexa a necessidade do cliente, maior o valor dessa coordenação.'],
+  ['OTC', 'Over The Counter', 'Operação negociada diretamente entre as partes, com uma mesa de atendimento, em vez de passar por uma plataforma automática. Usada em volumes maiores.'],
+  ['Payback de CAC', '', 'Quanto tempo o cliente leva para devolver o que custou conquistá-lo. Cerca de {PAYBACK} no cenário atual.'],
+  ['Post-money', '', 'Quanto a empresa passa a valer depois de receber o investimento. R$ 85 milhões no plano.'],
+  ['Pre-money', '', 'Quanto a empresa vale antes de receber o investimento. R$ 73 milhões no plano.'],
+  ['Primário', '', 'A parte do investimento que entra no caixa da empresa para financiar a operação. R$ 12 milhões no plano.'],
+  ['Provisão tributária', '', 'Reserva para impostos sobre o faturamento, separada antes de qualquer outra conta. {ALIQUOTA} da receita bruta no cenário atual.'],
+  ['SAM', 'Serviceable Available Market', 'A parte do mercado total que a empresa consegue efetivamente atender, considerando seu produto e seu tipo de cliente.'],
+  ['Secundário', '', 'A parte do investimento que vai para um sócio atual que está vendendo participação, e não para a empresa. R$ 5 milhões no plano.'],
+  ['SOM', 'Serviceable Obtainable Market', 'O quanto a empresa projeta capturar de fato, dentro daquilo que consegue atender.'],
+  ['Stablecoin', '', 'Ativo digital cujo valor acompanha o de uma moeda tradicional, normalmente o dólar. Permite mover valor rapidamente sem a oscilação típica das criptomoedas.'],
+  ['Take rate', 'taxa de captura sobre o volume', 'O percentual que a empresa cobra sobre o valor movimentado pelo cliente. {TAKE} nas linhas centrais.'],
+  ['TAM', 'Total Addressable Market', 'O tamanho total do mercado, se toda a demanda existente fosse atendida por alguém.'],
+  ['TIR', 'Taxa Interna de Retorno', 'O retorno em percentual por ano, considerando o tempo em que o dinheiro fica investido. {TIR} ao ano no cenário atual.'],
+  ['TPV', 'Total Payment Volume', 'O volume total de dinheiro que passa pela plataforma. Não é receita: a empresa ganha um percentual sobre esse valor.'],
+  ['Valor presente / descontar', '', 'Reconhecer que R$ 1 hoje vale mais que R$ 1 daqui a cinco anos, porque o dinheiro de hoje pode ser aplicado e porque o de amanhã pode não vir. Um valor recebido no Ano 5 vale menos hoje: a uma taxa de {DESCONTO} ao ano, cada R$ 1,00 do Ano 5 equivale a cerca de R$ {FATORVP} de hoje.'],
+  ['Valuation', '', 'Quanto a empresa vale. No cenário atual, estimado multiplicando o resultado operacional do Ano 5 por um múltiplo de referência.']
+];
+
+function preencherGlossario(txt){
+  return txt
+    .replace('{BREAKEVEN}', M.breakEven ? M.breakEven : '—')
+    .replace('{CAC}',       fmtRS(S.cac))
+    .replace('{CHURN}',     fmtPct(S.churn,1))
+    .replace('{LTV}',       fmtRS(M.ltvNominal))
+    .replace('{MULTIPLO}',  fmtX(S.multiploSaida,0))
+    .replace('{PAYBACK}',   isFinite(M.a5.paybackDias) ? nf(M.a5.paybackDias,0)+' dias' : '—')
+    .replace('{ALIQUOTA}',  fmtPct(S.aliquota,1))
+    .replace('{TAKE}',      fmtPct(S.takeComex,2))
+    .replace('{TIR}',       fmtPct(M.tirTotal,1))
+    .replace('{DESCONTO}',  fmtPct(S.taxaDesconto,0))
+    .replace('{FATORVP}',   nf(1/Math.pow(1+S.taxaDesconto,5),2));
+}
+
+/* ---------- 6. Tooltips (texto aprovado, números recalculados) ---------- */
+
+var TIPS = {
+  tpv: function(){ return '<b>TPV</b><br><span style="font-size:11px;color:#9AAAAB">Total Payment Volume</span><br><br>'+
+    'O volume total de dinheiro que passa pela plataforma. Não é receita da empresa — é o valor que os clientes movimentam. A empresa ganha um percentual sobre isso.'+
+    '<span class="tip-form">Ano 5: '+fmtInt(M.a5.totalClientes)+' clientes × ticket médio de cada perfil</span>'+
+    'Ano 5: <b>'+fmtBi(M.a5.tpvTotal)+'</b><br>Acumulado em 5 anos: '+fmtBi(M.acum.tpvTotal); },
+
+  ticket: function(){ return '<b>Ticket médio</b><br><br>Quanto cada cliente movimenta por ano, em média.'+
+    '<span class="tip-form">Micro e pequenas empresas: '+fmtMil(M.ano[0].tkMPE)+' no Ano 1, subindo para '+fmtMil(M.a5.tkMPE)+' no Ano 5<br>'+
+    'Médias empresas: '+fmtMil(M.a5.tkMed)+' por ano</span>'+
+    'O valor sobe ao longo dos anos porque o cliente que entra no meio do ano só atinge volume pleno no ano seguinte.'; },
+
+  take: function(){ return '<b>Take rate</b><br><span style="font-size:11px;color:#9AAAAB">taxa de captura sobre o volume</span><br><br>'+
+    'O percentual que a empresa cobra sobre o valor movimentado pelo cliente.<br><br>'+
+    'COMEX: <b>'+fmtPct(S.takeComex,2)+' all-in</b> — "all-in" significa preço fechado, com tudo incluído, sem tarifas somadas depois<br>'+
+    'Remessas: '+fmtPct(S.takeRem,2)+' · Cripto (OTC e fiat↔cripto): '+fmtPct(S.takeCripto,2); },
+
+  receita: function(){ return '<b>Receita bruta</b><br><br>O que a empresa fatura antes de descontar qualquer custo.'+
+    '<span class="tip-form">volume × take rate de cada vertical</span>'+
+    'Ano 5: '+fmtBi(M.a5.tpvTotal)+' de volume → <b>'+fmtMi(M.a5.receitaBruta)+'</b>'; },
+
+  custoExec: function(){ return '<b>Custo de execução</b><br><br>O que a empresa paga aos parceiros para que a operação aconteça — o provedor de câmbio e as tarifas de liquidação, que é o momento em que o dinheiro efetivamente troca de mãos.'+
+    '<span class="tip-form">Ano 5: '+fmtPct(S.custoProvedores,2)+' × '+fmtBi(M.a5.tpvComex+M.a5.tpvRem)+' (fiat)'+(S.criptoOn?' + '+fmtPct(S.custoLiqCripto,2)+' × '+fmtBi(M.a5.tpvCripto)+' (cripto)':'')+'</span>'+
+    'Ano 5: <b>'+fmtMi(M.a5.custoExecucao)+'</b><br><br>O custo com provedores tem teto contratual de 0,40% do volume.'; },
+
+  tributos: function(){ return '<b>Provisão tributária</b><br><br>Reserva para impostos sobre o faturamento, separada antes de qualquer outra conta.'+
+    '<span class="tip-form">Ano 5: '+fmtPct(S.aliquota,1)+' × '+fmtMi(M.a5.receitaBruta)+'</span>'+
+    '<b>'+fmtMi(M.a5.tributos)+'</b>'; },
+
+  margemContrib: function(){ return '<b>Margem de contribuição</b><br><br>O que sobra de cada real faturado depois de pagar o custo direto da operação e os impostos — antes das despesas da estrutura da empresa.'+
+    '<span class="tip-form">Ano 5: '+fmtMi(M.a5.receitaBruta)+' − '+fmtMi(M.a5.custoExecucao)+' − '+fmtMi(M.a5.tributos)+'</span>'+
+    '<b>'+fmtMi(M.a5.margemContrib)+'</b><br>Por cliente: '+fmtMi(M.a5.margemContrib)+' ÷ '+fmtInt(M.a5.totalClientes)+' = '+fmtRS(M.a5.margemPorCliente)+' por ano'; },
+
+  opex: function(){ return '<b>OPEX</b><br><span style="font-size:11px;color:#9AAAAB">Operational Expenditure — despesas operacionais</span><br><br>'+
+    'O custo de manter a empresa funcionando: equipe, tecnologia, compliance, atendimento, escritório. Não varia com cada operação feita.<br><br>'+
+    'Ano 5: <b>'+fmtMi(M.a5.opex,3)+'</b>, distribuídos em 11 categorias<br>Acumulado em 5 anos: '+fmtMi(M.acum.opex); },
+
+  gtm: function(){ return '<b>GTM</b><br><span style="font-size:11px;color:#9AAAAB">Go To Market</span><br><br>'+
+    'O que se gasta para conquistar clientes: comercial, marketing, eventos e ações de aquisição.'+
+    '<span class="tip-form">Ano 5: '+fmtInt(M.a5.novosComex)+' clientes novos de COMEX × '+fmtRS(S.cac)+' + '+fmtInt(M.a5.novosRem)+' de remessas × '+fmtRS(S.cacRem)+'</span>'+
+    'Ano 5: <b>'+fmtMi(M.a5.gtm)+'</b><br>Acumulado em 5 anos: '+fmtMi(M.acum.gtm); },
+
+  ebitda: function(){ return '<b>EBITDA</b><br><span style="font-size:11px;color:#9AAAAB">Earnings Before Interest, Taxes, Depreciation and Amortization</span><br><br>'+
+    'O quanto sobra da operação antes de contas financeiras e contábeis. Serve para comparar empresas sem misturar dívida e impostos sobre lucro.'+
+    '<span class="tip-form">Ano 5: '+fmtMi(M.a5.margemContrib)+' − '+fmtMi(M.a5.opex,3)+' − '+fmtMi(M.a5.gtm)+(S.licencaOn?' + '+fmtMi(M.a5.ganhoLicenca)+' (licença)':'')+'</span>'+
+    '<b>'+fmtMi(M.a5.ebitda)+'</b>'; },
+
+  margemEbitda: function(){ return '<b>Margem EBITDA</b><br><br>Quanto de cada real faturado vira resultado operacional.'+
+    '<span class="tip-form">Ano 5: '+fmtMi(M.a5.ebitda)+' ÷ '+fmtMi(M.a5.receitaBruta)+'</span>'+
+    '<b>'+fmtPct(M.a5.margemEbitda,1)+'</b>'; },
+
+  breakEven: function(){
+    var t = '<b>Break-even</b><br><br>O momento em que a operação passa a se sustentar sozinha, sem consumir o dinheiro do investimento.<span class="tip-form">';
+    for(var i=0;i<Math.min(3,5);i++){ t += 'Ano '+(i+1)+': EBITDA de '+fmtMi(M.ano[i].ebitda)+'<br>'; }
+    t += '</span>' + (M.breakEven ? '<b>Acontece dentro do Ano '+M.breakEven+'.</b>' : '<b>Não ocorre dentro do horizonte de 5 anos.</b>');
+    return t; },
+
+  cac: function(){ return '<b>CAC</b><br><span style="font-size:11px;color:#9AAAAB">Customer Acquisition Cost — custo de aquisição de cliente</span><br><br>'+
+    'Quanto custa conquistar um cliente novo, somando tudo: comercial, marketing e eventos.<br><br><b>'+fmtRS(S.cac)+' por cliente</b><br><br>'+
+    'Verificação: no Ano 5 foram '+fmtMi(M.a5.gtm)+' de gasto comercial para '+fmtInt(M.a5.novosClientes)+' clientes novos. O número já inclui toda a estrutura de aquisição, não apenas propaganda.'; },
+
+  payback: function(){ return '<b>Payback de CAC</b><br><span style="font-size:11px;color:#9AAAAB">tempo de retorno do custo de aquisição</span><br><br>'+
+    'Quanto tempo o cliente leva para devolver o que custou conquistá-lo.'+
+    '<span class="tip-form">'+fmtRS(S.cac)+' ÷ ('+fmtRS(M.a5.margemPorCliente)+' ÷ 365 dias)</span>'+
+    '<b>cerca de '+(isFinite(M.a5.paybackDias)?nf(M.a5.paybackDias,0)+' dias':'—')+'</b><br><br>'+
+    'Este é o indicador mais direto do modelo: não depende de projeção de quanto tempo o cliente fica, nem de taxa de desconto. Sai de dois números medidos.'; },
+
+  churn: function(){ return '<b>Churn</b><br><br>O percentual de clientes que a empresa perde por ano.<br><br><b>'+fmtPct(S.churn,1)+' ao ano</b> — não é ao mês.<br><br>'+
+    'Atenção: o número de 1% a 5% que se costuma citar em fintech é mensal. Aqui é anual. O cliente é considerado inativo com 12 meses sem operar e só recebe baixa com 18 meses, porque o ciclo de comércio exterior de uma pequena empresa não é mensal.<br><br>'+
+    'A retenção é alta porque o cliente usa a plataforma para várias coisas ao mesmo tempo — câmbio de importação, remessa, cripto — e sair significa refazer o cadastro e a integração inteira em outro lugar.'; },
+
+  ltv: function(){ return '<b>LTV</b><br><span style="font-size:11px;color:#9AAAAB">Lifetime Value — valor do cliente ao longo do tempo</span><br><br>'+
+    'Quanto um cliente gera de margem ao longo do tempo em que fica na base.'+
+    '<span class="tip-form">Margem de '+fmtRS(M.a5.margemPorCliente)+' por ano, com '+fmtPct(S.churn,1)+' de perda ao ano, somada ao longo de 5 anos</span>'+
+    '<b>'+fmtRS(M.ltvNominal)+' por cliente</b><br>Trazido a valor de hoje, a '+fmtPct(S.taxaDesconto,0)+' ao ano: '+fmtRS(M.ltvDescontado)+'<br><br>'+
+    'O cálculo para no quinto ano de propósito. Com perda baixa, o cliente teoricamente ficaria décadas, e o número perderia sentido prático.'; },
+
+  ltvCac: function(){ return '<b>LTV/CAC</b><br><br>Quantas vezes o cliente devolve o que custou trazê-lo.'+
+    '<span class="tip-form">'+fmtRS(M.ltvNominal)+' ÷ '+fmtRS(S.cac)+'</span>'+
+    '<b>'+nf(M.ltvSobreCac,1)+' vezes</b><br>Considerando o valor descontado: '+nf(M.ltvDescSobreCac,1)+' vezes'; },
+
+  tam: function(){ return '<b>TAM</b><br><span style="font-size:11px;color:#9AAAAB">Total Addressable Market — mercado total endereçável</span><br><br>'+
+    'O tamanho total do mercado, se toda a demanda existente fosse atendida por alguém.<br><br>'+
+    'COMEX: '+fmtBi(MERCADO.tamComex.valor,0)+'<br>Remessas: '+fmtBi(MERCADO.tamRemessas.valor,0)+'<br>Cripto: '+fmtBi(MERCADO.tamCripto.valor,1)+
+    '<span class="tip-fonte">Fontes: '+MERCADO.tamComex.fonte+' · '+MERCADO.tamRemessas.fonte+' · '+MERCADO.tamCripto.fonte+'</span>'; },
+
+  sam: function(){ return '<b>SAM</b><br><span style="font-size:11px;color:#9AAAAB">Serviceable Available Market — mercado atendível</span><br><br>'+
+    'A parte desse mercado que a empresa consegue atender, considerando o tipo de cliente e o produto que ela oferece. É sempre menor que o total.<br><br>'+
+    'COMEX, micro e pequenas empresas: '+fmtBi(MERCADO.samComexMpe.valor)+'<br>COMEX, médias empresas: '+fmtBi(MERCADO.samComexMedias.valor,1)+'<br>Cripto, segmento de stablecoins: '+fmtBi(MERCADO.samCripto.valor,0)+
+    '<span class="tip-fonte">Fontes: '+MERCADO.samComexMpe.fonte+' · '+MERCADO.samComexMedias.fonte+'</span>'; },
+
+  som: function(){ return '<b>SOM</b><br><span style="font-size:11px;color:#9AAAAB">Serviceable Obtainable Market — mercado capturável</span><br><br>'+
+    'O quanto a empresa projeta capturar de fato, dentro do que consegue atender.<br><br>'+
+    'Ano 5: <b>'+fmtBi(M.a5.tpvTotal)+'</b> de volume, sendo '+fmtBi(M.a5.tpvComex)+' em COMEX e '+fmtBi(M.a5.tpvRem)+' em remessas'+
+    (S.criptoOn ? ' e '+fmtBi(M.a5.tpvCripto)+' em cripto' : ''); },
+
+  penetracao: function(){ return '<b>Penetração de mercado</b><br><br>Que fatia do mercado o plano projeta ocupar.'+
+    '<span class="tip-form">COMEX micro e pequenas: '+fmtBi(M.a5.tpvComexMPE)+' sobre '+fmtBi(MERCADO.samComexMpe.valor)+' = '+fmtPct(M.pen.comexValor,2)+'<br>'+
+    'Por número de empresas: '+fmtInt(S.clientesMPE5)+' de '+fmtInt(MERCADO.universoMpe.valor)+' = '+fmtPct(M.pen.comexContagem,2)+'</span>'+
+    'A diferença entre as duas medidas é a captura parcial: o cliente não troca de banco, a BROSBNK captura parte do fluxo dele.'; },
+
+  valuation: function(){ return '<b>Valuation na saída</b><br><br>Quanto a empresa valeria no momento em que o investidor vende sua participação. O critério usado é multiplicar o resultado operacional do último ano por um número de referência de mercado.'+
+    '<span class="tip-form">Ano 5: '+fmtMi(M.ebitdaAno5)+' × '+fmtX(S.multiploSaida,0)+'</span>'+
+    '<b>'+fmtMi(M.valuation)+'</b><br><br>O múltiplo é ilustrativo. A aba Sensibilidade mostra de 6x a 16x.'; },
+
+  participacao: function(){ return '<b>Valor da participação</b><br><br>Quanto vale a fatia do investidor no momento da saída.'+
+    '<span class="tip-form">'+fmtMi(M.valuation)+' × '+fmtPct(S.pctVendido,0)+'</span>'+
+    '<b>'+fmtMi(M.participacao)+'</b>'; },
+
+  moic: function(){ return '<b>MOIC</b><br><span style="font-size:11px;color:#9AAAAB">Multiple on Invested Capital — múltiplo sobre o capital investido</span><br><br>'+
+    'Quantas vezes o dinheiro investido se multiplica até a saída.<br><br>'+
+    'Valor da participação: '+fmtMi(M.participacao)+'<br>Sobre o valor total desembolsado (R$ 17 mi): <b>'+fmtX(M.moicTotal)+'</b><br>Sobre o valor que entrou no caixa da empresa (R$ 12 mi): '+fmtX(M.moicPrimario)+'<br><br>'+
+    'R$ 17 milhões, sendo R$ 12 milhões primários e R$ 5 milhões secundários. As duas contas são corretas e por isso as duas aparecem.<br><br>'+
+    'O MOIC não considera o tempo. Quem cuida do tempo é a TIR.'; },
+
+  tir: function(){ return '<b>TIR</b><br><span style="font-size:11px;color:#9AAAAB">Taxa Interna de Retorno</span><br><br>'+
+    'O retorno em percentual por ano, considerando o tempo que o dinheiro fica investido.'+
+    '<span class="tip-form">(participação ÷ investido) elevado a 1/5, menos 1</span>'+
+    'Transformar R$ 17 milhões em '+fmtMi(M.participacao)+' ao longo de 5 anos equivale a render <b>'+fmtPct(M.tirTotal,1)+' ao ano</b>.<br>'+
+    'Sobre os R$ 12 milhões que entraram na operação: '+fmtPct(M.tirPrimario,1)+' ao ano.'; },
+
+  licenca: function(){ return '<b>Ganho de licença própria</b><br><br>A economia obtida quando a empresa passa a operar com licença própria e deixa de pagar um intermediário para executar parte das operações.'+
+    '<span class="tip-form">'+fmtPct(S.ganhoCripto,2)+' sobre o volume da vertical cripto'+(S.ganhoComex>0?' + '+fmtPct(S.ganhoComex,2)+' sobre o volume de COMEX':'')+'</span>'+
+    'Ano 5: <b>'+fmtMi(M.a5.ganhoLicenca)+' por ano</b><br><br>'+
+    'É redução de custo, não faturamento novo — por isso o valor vai integralmente para o resultado, sem desconto de imposto sobre receita.<br><br>'+
+    'Só produz efeito com a vertical cripto ativa, porque a licença não gera volume novo: ela melhora a margem do volume que já existe.'; },
+
+  orquestracao: function(){ return '<b>Orquestração</b><br><br>A capacidade de coordenar vários provedores, moedas e rotas de pagamento por trás de uma interface única, escolhendo o melhor caminho para cada operação sem que o cliente precise saber disso. É a tese central do plano: quanto mais complexa a necessidade do cliente, maior o valor dessa coordenação.'; },
+
+  descontado: function(){ return '<b>Valor presente / descontar</b><br><br>Reconhecer que R$ 1 hoje vale mais que R$ 1 daqui a cinco anos, porque o dinheiro de hoje pode ser aplicado e porque o de amanhã pode não vir.'+
+    '<span class="tip-form">valor ÷ (1 + '+fmtPct(S.taxaDesconto,0)+') elevado ao número de anos</span>'+
+    'A '+fmtPct(S.taxaDesconto,0)+' ao ano, cada R$ 1,00 recebido no Ano 5 equivale a R$ '+nf(1/Math.pow(1+S.taxaDesconto,5),2)+' de hoje.'; }
+};
+
+
+/* ==========================================================================
+   7. Definição dos controles (seção 4 da especificação)
+   ========================================================================== */
+
+var CONTROLES = [
+  // grupo, chave, rótulo, min, max, passo, tipo, modo, tooltip
+  {g:'comex', k:'clientesMPE5', rot:'Clientes MPE no Ano 5',            min:1000, max:12000, passo:50,  tipo:'int', modo:'ambos',    tip:'Quantas micro e pequenas empresas — empresas de menor porte, na classificação das estatísticas oficiais de comércio exterior — estarão ativas na plataforma no quinto ano. Os anos anteriores são derivados da curva de entrada.'},
+  {g:'comex', k:'tkMPE5',       rot:'Ticket médio MPE (R$ mil/ano)',    min:300,  max:1700,  passo:1,   tipo:'int', modo:'ambos',    tipRef:'ticket'},
+  {g:'comex', k:'clientesMed5', rot:'Clientes médios no Ano 5',         min:0,    max:300,   passo:1,   tipo:'int', modo:'avancado', tip:'Quantas empresas de médio porte estarão ativas no quinto ano. São poucas em número, mas com volume por cliente muito maior.'},
+  {g:'comex', k:'tkMed5',       rot:'Ticket médio das médias (R$ mil/ano)', min:1000, max:10000, passo:50, tipo:'int', modo:'avancado', tipRef:'ticket'},
+  {g:'comex', k:'takeComex',    rot:'Take rate COMEX',                  min:0.80, max:2.00,  passo:0.01, tipo:'pct', modo:'ambos',   tipRef:'take'},
+
+  {g:'rem',   k:'clientesRem5', rot:'Clientes de remessas no Ano 5',    min:0,    max:10000, passo:50,  tipo:'int', modo:'ambos',    tip:'Quantos clientes usarão a plataforma para enviar e receber dinheiro do exterior fora das operações de comércio exterior.'},
+  {g:'rem',   k:'tkRem5',       rot:'Ticket médio de remessa (R$ mil/ano)', min:50, max:1000, passo:1,  tipo:'int', modo:'ambos',    tipRef:'ticket'},
+  {g:'rem',   k:'takeRem',      rot:'Take rate remessas',               min:0.80, max:2.00,  passo:0.01, tipo:'pct', modo:'avancado', tipRef:'take'},
+
+  {g:'cripto',k:'tpvCripto5',   rot:'TPV cripto Ano 5 (R$ bi)',         min:0,    max:10,    passo:0.05, tipo:'dec', modo:'ambos',   tipRef:'tpv'},
+  {g:'cripto',k:'takeCripto',   rot:'Take rate cripto',                 min:0.20, max:1.00,  passo:0.01, tipo:'pct', modo:'ambos',   tipRef:'take'},
+  {g:'cripto',k:'custoLiqCripto',rot:'Custo de liquidez cripto',        min:0.00, max:0.50,  passo:0.01, tipo:'pct', modo:'ambos',   tip:'O que se paga para manter dinheiro disponível nas duas pontas da operação com ativos digitais, de modo que a troca possa acontecer na hora.'},
+
+  {g:'lic',   k:'ganhoCripto',  rot:'Ganho na vertical cripto',         min:0.00, max:0.30,  passo:0.01, tipo:'pct', modo:'ambos',   tipRef:'licenca'},
+  {g:'lic',   k:'ganhoComex',   rot:'Ganho na vertical COMEX',          min:0.00, max:0.30,  passo:0.01, tipo:'pct', modo:'ambos',   tipRef:'licenca',
+   nota:'Extensão em estudo — pagamentos a parceiros liquidados em stablecoin. Número ainda não apurado.'},
+
+  {g:'custo', k:'custoProvedores', rot:'Custo com provedores',          min:0.20, max:0.80,  passo:0.01, tipo:'pct', modo:'ambos',   tipRef:'custoExec'},
+  {g:'custo', k:'aliquota',     rot:'Provisão tributária',              min:0.0,  max:15.0,  passo:0.1, tipo:'pct', modo:'avancado', tipRef:'tributos'},
+  {g:'custo', k:'multOpex',     rot:'Multiplicador de OPEX',            min:0.50, max:2.00,  passo:0.01, tipo:'mult', modo:'apresentacao', tipRef:'opex'},
+  {g:'custo', k:'cac',          rot:'CAC (R$ por cliente)',             min:200,  max:1500,  passo:1,   tipo:'int', modo:'ambos',    tipRef:'cac'},
+  {g:'custo', k:'cacRem',       rot:'CAC de remessas (R$)',             min:100,  max:1500,  passo:1,   tipo:'int', modo:'avancado', tipRef:'cac'},
+
+  {g:'ret',   k:'churn',        rot:'Churn (ao ano)',                   min:0.0,  max:10.0,  passo:0.1, tipo:'pct', modo:'ambos',    tipRef:'churn'},
+
+  {g:'saida', k:'multiploSaida',rot:'Múltiplo de saída',                min:6,    max:16,    passo:1,   tipo:'mult0', modo:'ambos',  tipRef:'valuation'},
+  {g:'saida', k:'pctVendido',   rot:'Participação vendida',             min:10,   max:35,    passo:1,   tipo:'pct', modo:'ambos',    tipRef:'participacao'},
+  {g:'saida', k:'taxaDesconto', rot:'Taxa de desconto (p/ LTV descontado)', min:0, max:30,   passo:1,   tipo:'pct', modo:'ambos',    tipRef:'descontado'}
+];
+
+var GRUPOS = [
+  {id:'comex',  titulo:'COMEX',            cor:CORES.comex,    fixo:true},
+  {id:'rem',    titulo:'Remessas',         cor:CORES.remessas, fixo:true},
+  {id:'cripto', titulo:'Cripto',           cor:CORES.cripto,   chave:'criptoOn'},
+  {id:'lic',    titulo:'Licença própria',  cor:CORES.licenca,  chave:'licencaOn'},
+  {id:'custo',  titulo:'Custos e estrutura'},
+  {id:'ret',    titulo:'Retenção'},
+  {id:'saida',  titulo:'Saída e rodada'}
+];
+
+function valorExibido(c){
+  var v = S[c.k];
+  if(c.tipo==='pct')   return nf(v*100, c.passo<0.1?2:(c.passo<1?2:1)) + '%';
+  if(c.tipo==='mult')  return nf(v,2)+'x';
+  if(c.tipo==='mult0') return nf(v,0)+'x';
+  if(c.tipo==='dec')   return nf(v,2);
+  return nf(v,0);
+}
+function valorSlider(c){ return c.tipo==='pct' ? S[c.k]*100 : S[c.k]; }
+function aplicarSlider(c, x){ S[c.k] = c.tipo==='pct' ? x/100 : x; }
+
+function visivel(c){
+  if(c.modo==='ambos') return true;
+  if(c.modo==='avancado') return S.modo==='avancado';
+  if(c.modo==='apresentacao') return S.modo==='apresentacao';
+  return true;
+}
+
+/* ---------- Renderização da barra de controles ---------- */
+
+function htmlAjuda(ref){ return '<button class="ajuda" data-tip="'+ref+'" aria-label="Ajuda">?</button>'; }
+
+function htmlControle(c, idx){
+  var ajuda = c.tipRef ? htmlAjuda(c.tipRef) : (c.tip ? '<button class="ajuda" data-tiptxt="'+idx+'" aria-label="Ajuda">?</button>' : '');
+  return '<div class="ctl" data-testid="ctl-'+c.k+'">'+
+    '<div class="ctl-topo"><span class="ctl-rot">'+c.rot+'</span>'+ajuda+'<span class="ctl-val" data-testid="val-'+c.k+'">'+valorExibido(c)+'</span></div>'+
+    '<input type="range" min="'+c.min+'" max="'+c.max+'" step="'+c.passo+'" value="'+valorSlider(c)+'" data-ctl="'+c.k+'" data-testid="slider-'+c.k+'">'+
+    '<div class="ctl-lim"><span>'+(c.tipo==='pct'?nf(c.min,2)+'%':nf(c.min, c.tipo==='dec'?2:0)+(c.tipo==='mult'||c.tipo==='mult0'?'x':''))+'</span>'+
+    '<span>'+(c.tipo==='pct'?nf(c.max,2)+'%':nf(c.max, c.tipo==='dec'?2:0)+(c.tipo==='mult'||c.tipo==='mult0'?'x':''))+'</span></div>'+
+    (c.nota ? '<div class="aviso aviso-info">'+c.nota+'</div>' : '')+
+  '</div>';
+}
+
+function renderControles(){
+  var h = '';
+  h += '<div class="cartao"><div class="cartao-titulo">Modo '+ (S.modo==='apresentacao'?'<span class="pill">simplificado</span>':'<span class="pill">completo</span>') +'</div>'+
+       '<div style="font-size:12.5px;line-height:1.5;color:#6B7574">'+
+       (S.modo==='apresentacao'
+         ? 'Poucos controles, linguagem direta. A curva de clientes é derivada do mercado capturável e o OPEX é ajustado por um multiplicador único.'
+         : 'Todos os controles disponíveis: OPEX por categoria, maturação do ticket por ano e destravamento manual da curva de clientes.')+
+       '</div></div>';
+
+  GRUPOS.forEach(function(gr){
+    var lista = CONTROLES.filter(function(c){ return c.g===gr.id && visivel(c); });
+    var ligado = gr.chave ? S[gr.chave] : true;
+    if(!lista.length && !gr.chave) return;
+    h += '<div class="cartao" data-testid="grupo-'+gr.id+'">';
+    h += '<div class="cartao-titulo">'+(gr.cor?'<span class="faixa-vertical" style="background:'+gr.cor+'"></span>':'')+gr.titulo+
+         (gr.fixo?'<span class="pill">sempre ligado</span>':'')+'</div>';
+    if(gr.chave){
+      var desabilita = (gr.id==='lic' && !S.criptoOn) ? ' disabled' : '';
+      h += '<label class="chave" style="margin-bottom:'+(ligado?'14px':'0')+'">'+
+           '<input type="checkbox" data-chave="'+gr.chave+'" data-testid="chave-'+gr.id+'"'+(ligado?' checked':'')+desabilita+'>'+
+           '<span class="trilho"></span><span class="chave-rot">'+(ligado?'Ligada':'Desligada')+'</span></label>';
+      if(gr.id==='lic' && !S.criptoOn){
+        h += avisoLicenca
+          ? '<div class="aviso aviso-ambar" data-testid="aviso-licenca-desligada">A licença própria foi desligada junto com a vertical cripto. A licença não gera volume novo: ela só melhora a margem do volume que já existe.</div>'
+          : '<div class="aviso aviso-info">A licença própria só pode ser ligada com a vertical cripto ativa. A licença não gera volume novo: ela melhora a margem do volume que já existe.</div>';
+      }
+      if(gr.id==='cripto' && !ligado){
+        h += '<div class="aviso aviso-info">Fora do caso-base. Ligue para incluir a vertical no cenário.</div>';
+      }
+    }
+    if(ligado){
+      lista.forEach(function(c){ h += htmlControle(c, CONTROLES.indexOf(c)); });
+      if(gr.id==='rem' && S.tkRem5 > S.tkMPE5){
+        h += '<div class="aviso aviso-ambar" data-testid="aviso-ticket-remessa">Remessa com ticket maior que COMEX — verifique a coerência da narrativa.</div>';
+      }
+      if(gr.id==='saida'){
+        h += '<div class="metrica" style="border-bottom:0;padding-bottom:0"><div class="metrica-rot">Investimento total</div>'+
+             '<div class="metrica-val" data-testid="investimento-total">R$ 17 mi</div>'+
+             '<div class="metrica-sub">Parcela primária: R$ 12 mi · secundária: R$ 5 mi</div></div>';
+      }
+    }
+    h += '</div>';
+  });
+
+  if(S.modo==='avancado'){
+    // OPEX por categoria
+    h += '<div class="cartao" data-testid="grupo-opex"><div class="cartao-titulo">OPEX por categoria '+htmlAjuda('opex')+'</div>'+
+         '<div style="font-size:11.5px;color:#8A9392;margin-bottom:8px">Valores em R$ mil por ano.</div>'+
+         '<div class="tab-rolagem"><table class="dados" style="min-width:420px;font-size:11.5px">'+
+         '<thead><tr><th>Categoria</th><th>A1</th><th>A2</th><th>A3</th><th>A4</th><th>A5</th></tr></thead><tbody>';
+    OPEX_CATEGORIAS.forEach(function(cat,k){
+      h += '<tr><td style="min-width:130px">'+cat.nome+'</td>';
+      for(var i=0;i<5;i++){
+        h += '<td style="padding:3px"><input class="ctl-num" style="width:62px;padding:3px 5px;font-size:11.5px;text-align:right" type="number" step="0.1" value="'+opexCategoriaValor(k,i)+'" data-opex="'+k+'" data-ano="'+i+'" data-testid="opex-'+cat.id+'-'+(i+1)+'"></td>';
+      }
+      h += '</tr>';
+    });
+    h += '<tr class="destaque"><td>Total</td>';
+    for(var i2=0;i2<5;i2++){ h += '<td data-testid="opex-total-'+(i2+1)+'">'+nf(opexBaseAno(i2)*1000,1)+'</td>'; }
+    h += '</tr></tbody></table></div>'+
+         '<button class="btn btn-pequeno" style="margin-top:10px" data-acao="resetOpex" data-testid="btn-reset-opex">Restaurar OPEX do plano</button></div>';
+
+    // Curva
+    h += '<div class="cartao" data-testid="grupo-curva"><div class="cartao-titulo">Curva de entrada e maturação</div>'+
+         '<label class="chave" style="margin-bottom:12px"><input type="checkbox" data-chave="curvaDestravada" data-testid="chave-curva"'+(S.curvaDestravada?' checked':'')+'>'+
+         '<span class="trilho"></span><span class="chave-rot">'+(S.curvaDestravada?'Curva destravada':'Destravar curva')+'</span></label>';
+    if(S.curvaDestravada){
+      h += '<div style="font-size:11.5px;color:#8A9392;margin-bottom:8px">Fatores aplicados ao Ano 5. Clientes acima, maturação do ticket abaixo.</div>'+
+           '<div class="tab-rolagem"><table class="dados" style="min-width:380px;font-size:11.5px"><thead><tr><th>Fator</th><th>A1</th><th>A2</th><th>A3</th><th>A4</th><th>A5</th></tr></thead><tbody>';
+      ['fCli','fTk'].forEach(function(nome){
+        h += '<tr><td>'+(nome==='fCli'?'Clientes':'Ticket')+'</td>';
+        for(var j=0;j<5;j++){
+          h += '<td style="padding:3px"><input class="ctl-num" style="width:62px;padding:3px 5px;font-size:11.5px;text-align:right" type="number" step="0.001" value="'+S[nome][j]+'" data-curva="'+nome+'" data-ano="'+j+'" data-testid="curva-'+nome+'-'+(j+1)+'"></td>';
+        }
+        h += '</tr>';
+      });
+      h += '</tbody></table></div><button class="btn btn-pequeno" style="margin-top:10px" data-acao="resetCurva" data-testid="btn-reset-curva">Restaurar curva do plano</button>';
+    } else {
+      h += '<div style="font-size:12.5px;color:#6B7574;line-height:1.5">A curva está travada nos fatores do plano: '+
+           S.fCli.map(function(x){return nf(x*100,0)+'%';}).join(' · ')+' para clientes e '+
+           S.fTk.map(function(x){return nf(x,3);}).join(' · ')+' para maturação do ticket.</div>';
+    }
+    h += '</div>';
+  }
+
+  if(SOMENTE_LEITURA){
+    h = '<div class="cartao" data-testid="cartao-travado" style="border-left:3px solid var(--acento)">'+
+        '<div class="cartao-titulo">Somente leitura</div>'+
+        '<div style="font-size:12.5px;line-height:1.55;color:#6B7574">Este é um cenário compartilhado. Os controles estão travados: os números na tela são exatamente os que quem enviou o link calculou. As abas de resultado, o glossário e as exportações continuam disponíveis.</div></div>'+
+        '<fieldset disabled data-testid="controles-travados" style="border:0;padding:0;margin:0;opacity:.72">'+h+'</fieldset>';
+  }
+  document.getElementById('painelControles').innerHTML = h;
+  var gav = document.getElementById('gavetaControles');
+  if(gav) gav.innerHTML = h;
+}
+
+/* ==========================================================================
+   8. Gráficos em SVG
+   ========================================================================== */
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function graficoBarras(dados, opcoes){
+  opcoes = opcoes || {};
+  var L=52, R=12, T=14, B=28, W=opcoes.w||520, H=opcoes.h||220;
+  var iw = W-L-R, ih = H-T-B;
+  var vals = dados.map(function(d){ return d.v; });
+  var maxV = Math.max.apply(null, vals.concat([0]));
+  var minV = Math.min.apply(null, vals.concat([0]));
+  var span = (maxV-minV) || 1;
+  var y0 = T + ih * (maxV/span);
+  var bw = iw/dados.length*0.58, gap = iw/dados.length;
+  var s = '<svg viewBox="0 0 '+W+' '+H+'" width="100%" height="'+H+'" role="img" preserveAspectRatio="xMidYMid meet">';
+  [0,0.25,0.5,0.75,1].forEach(function(f){
+    var y = T + ih*f, v = maxV - span*f;
+    s += '<line x1="'+L+'" y1="'+y+'" x2="'+(W-R)+'" y2="'+y+'" stroke="#E7EBEB"/>';
+    s += '<text x="'+(L-6)+'" y="'+(y+3.5)+'" font-size="9.5" fill="#8A9392" text-anchor="end">'+nf(v,1)+'</text>';
+  });
+  dados.forEach(function(d,i){
+    var x = L + gap*i + (gap-bw)/2;
+    var hh = Math.abs(d.v)/span*ih;
+    var y = d.v>=0 ? y0-hh : y0;
+    s += '<rect x="'+x+'" y="'+y+'" width="'+bw+'" height="'+Math.max(hh,1)+'" rx="3" fill="'+(d.cor||(d.v>=0?'#20808D':'#E2231D'))+'"/>';
+    s += '<text x="'+(x+bw/2)+'" y="'+(d.v>=0?y-4:y+hh+11)+'" font-size="10" font-weight="600" fill="#28251D" text-anchor="middle">'+esc(d.rotVal||nf(d.v,1))+'</text>';
+    s += '<text x="'+(x+bw/2)+'" y="'+(H-9)+'" font-size="10" fill="#6B7574" text-anchor="middle">'+esc(d.rot)+'</text>';
+  });
+  s += '<line x1="'+L+'" y1="'+y0+'" x2="'+(W-R)+'" y2="'+y0+'" stroke="#B9C3C2"/></svg>';
+  return s;
+}
+
+function graficoRosca(partes, opcoes){
+  opcoes = opcoes || {};
+  var S2 = opcoes.tam||210, cx=S2/2, cy=S2/2, rE=S2/2-6, rI=rE*0.6;
+  var total = partes.reduce(function(a,p){ return a+p.v; },0);
+  var s = '<svg viewBox="0 0 '+S2+' '+S2+'" width="'+S2+'" height="'+S2+'" role="img">';
+  if(total<=0){ s += '<circle cx="'+cx+'" cy="'+cy+'" r="'+rE+'" fill="#E7EBEB"/></svg>'; return s; }
+  var ang = -Math.PI/2;
+  partes.forEach(function(p){
+    if(p.v<=0) return;
+    var a2 = ang + (p.v/total)*Math.PI*2;
+    var grande = (a2-ang) > Math.PI ? 1 : 0;
+    var x1=cx+rE*Math.cos(ang), y1=cy+rE*Math.sin(ang), x2=cx+rE*Math.cos(a2), y2=cy+rE*Math.sin(a2);
+    var x3=cx+rI*Math.cos(a2), y3=cy+rI*Math.sin(a2), x4=cx+rI*Math.cos(ang), y4=cy+rI*Math.sin(ang);
+    if(p.v/total > 0.9999){
+      s += '<circle cx="'+cx+'" cy="'+cy+'" r="'+((rE+rI)/2)+'" fill="none" stroke="'+p.cor+'" stroke-width="'+(rE-rI)+'"/>';
+    } else {
+      s += '<path d="M'+x1+' '+y1+' A'+rE+' '+rE+' 0 '+grande+' 1 '+x2+' '+y2+' L'+x3+' '+y3+' A'+rI+' '+rI+' 0 '+grande+' 0 '+x4+' '+y4+' Z" fill="'+p.cor+'"/>';
+    }
+    ang = a2;
+  });
+  s += '<text x="'+cx+'" y="'+(cy-2)+'" font-size="11" fill="#6B7574" text-anchor="middle">TPV Ano 5</text>';
+  s += '<text x="'+cx+'" y="'+(cy+15)+'" font-size="15" font-weight="700" fill="#0C4E54" text-anchor="middle">'+esc(fmtBi(total))+'</text></svg>';
+  return s;
+}
+
+function barraEmpilhada(partes, opcoes){
+  opcoes = opcoes||{};
+  var W=opcoes.w||520, H=26;
+  var total = partes.reduce(function(a,p){ return a+p.v; },0);
+  var s = '<svg viewBox="0 0 '+W+' '+H+'" width="100%" height="'+H+'" role="img" preserveAspectRatio="none">';
+  if(total<=0){ s+='<rect width="'+W+'" height="'+H+'" rx="5" fill="#E7EBEB"/></svg>'; return s; }
+  var x=0;
+  partes.forEach(function(p){
+    var w = p.v/total*W;
+    if(w<=0) return;
+    s += '<rect x="'+x+'" y="0" width="'+w+'" height="'+H+'" fill="'+p.cor+'"/>';
+    if(w>52) s += '<text x="'+(x+w/2)+'" y="17" font-size="10.5" font-weight="600" fill="#fff" text-anchor="middle">'+esc(nf(p.v/total*100,0))+'%</text>';
+    x += w;
+  });
+  s += '</svg>';
+  return s;
+}
+
+function graficoLinhas(series, rotulosX, opcoes){
+  opcoes = opcoes||{};
+  var L=52,R=14,T=14,B=28,W=opcoes.w||520,H=opcoes.h||230;
+  var iw=W-L-R, ih=H-T-B;
+  var maxV=0;
+  series.forEach(function(se){ se.v.forEach(function(y){ if(y>maxV) maxV=y; }); });
+  maxV = maxV||1;
+  var s='<svg viewBox="0 0 '+W+' '+H+'" width="100%" height="'+H+'" role="img" preserveAspectRatio="xMidYMid meet">';
+  [0,0.25,0.5,0.75,1].forEach(function(f){
+    var y=T+ih*f;
+    s+='<line x1="'+L+'" y1="'+y+'" x2="'+(W-R)+'" y2="'+y+'" stroke="#E7EBEB"/>'+
+       '<text x="'+(L-6)+'" y="'+(y+3.5)+'" font-size="9.5" fill="#8A9392" text-anchor="end">'+nf(maxV*(1-f),0)+'</text>';
+  });
+  rotulosX.forEach(function(r,i){
+    var x=L+iw*(i/(rotulosX.length-1||1));
+    s+='<text x="'+x+'" y="'+(H-9)+'" font-size="10" fill="#6B7574" text-anchor="middle">'+esc(r)+'</text>';
+  });
+  series.forEach(function(se){
+    var d='';
+    se.v.forEach(function(y,i){
+      var px=L+iw*(i/(se.v.length-1||1)), py=T+ih*(1-y/maxV);
+      d += (i?'L':'M')+px+' '+py+' ';
+    });
+    s+='<path d="'+d+'" fill="none" stroke="'+se.cor+'" stroke-width="2.4" stroke-linejoin="round"/>';
+    se.v.forEach(function(y,i){
+      var px=L+iw*(i/(se.v.length-1||1)), py=T+ih*(1-y/maxV);
+      s+='<circle cx="'+px+'" cy="'+py+'" r="3.2" fill="#fff" stroke="'+se.cor+'" stroke-width="2"/>';
+    });
+  });
+  s+='</svg>';
+  return s;
+}
+
+function legenda(itens){
+  return '<div class="legenda">'+itens.map(function(it){
+    return '<span><i style="background:'+it.cor+'"></i>'+esc(it.rot)+'</span>';
+  }).join('')+'</div>';
+}
+
+function semaforo(p){
+  var cls = p<=0.05 ? 'sem-verde' : (p<=0.15 ? 'sem-ambar' : 'sem-vermelho');
+  var txt = p<=0.05 ? 'confortável' : (p<=0.15 ? 'exige atenção' : 'agressivo');
+  return '<span class="semaforo '+cls+'">'+fmtPct(p,2)+' · '+txt+'</span>';
+}
+
+
+/* ==========================================================================
+   9. KPIs e abas de resultado
+   ========================================================================== */
+
+var ABAS = [
+  {id:'resumo',       rot:'Resumo'},
+  {id:'pl',           rot:'P&L'},
+  {id:'mercado',      rot:'Mercado'},
+  {id:'clientes',     rot:'Clientes'},
+  {id:'retorno',      rot:'Retorno'},
+  {id:'sensibilidade',rot:'Sensibilidade'},
+  {id:'cenarios',     rot:'Cenários'}
+];
+
+function renderKpis(){
+  var itens = [
+    {rot:'TPV Ano 5',        val:fmtBi(M.a5.tpvTotal),            nota:'Acumulado: '+fmtBi(M.acum.tpvTotal),      tip:'tpv',          tid:'kpi-tpv'},
+    {rot:'Receita bruta A5', val:fmtMi(M.a5.receitaBruta),        nota:'Acumulada: '+fmtMi(M.acum.receitaBruta),  tip:'receita',      tid:'kpi-receita'},
+    {rot:'EBITDA Ano 5',     val:fmtMi(M.a5.ebitda),              nota:M.breakEven?('Break-even dentro do Ano '+M.breakEven):'Sem break-even em 5 anos', tip:'ebitda', tid:'kpi-ebitda'},
+    {rot:'Margem EBITDA A5', val:fmtPct(M.a5.margemEbitda,1),     nota:'Sobre a receita bruta',                   tip:'margemEbitda', tid:'kpi-margem'},
+    {rot:'MOIC',             val:fmtX(M.moicTotal),               nota:'Sobre R$ 17 mi · primário '+fmtX(M.moicPrimario), tip:'moic', tid:'kpi-moic'},
+    {rot:'TIR',              val:fmtPct(M.tirTotal,1)+' a.a.',    nota:'Primário: '+fmtPct(M.tirPrimario,1)+' a.a.', tip:'tir',      tid:'kpi-tir'}
+  ];
+  document.getElementById('kpis').innerHTML = itens.map(function(k){
+    return '<div class="kpi" data-testid="'+k.tid+'"><div class="kpi-rot"><span>'+k.rot+'</span>'+htmlAjuda(k.tip)+'</div>'+
+      '<div class="kpi-valor">'+k.val+'</div><div class="kpi-nota">'+k.nota+'</div></div>';
+  }).join('');
+}
+
+function narrativa(){
+  var partes = ['COMEX', 'remessas'];
+  if(S.criptoOn) partes.push('cripto');
+  var lista = partes.length>2 ? partes.slice(0,-1).join(', ')+' e '+partes[partes.length-1] : partes.join(' e ');
+  return 'No Ano 5 o plano projeta <strong>'+fmtInt(M.a5.totalClientes)+' clientes</strong> movimentando '+
+    '<strong>'+fmtBi(M.a5.tpvTotal)+'</strong> pela plataforma, o que gera '+
+    '<strong>'+fmtMi(M.a5.receitaBruta)+'</strong> de receita bruta e '+
+    '<strong>'+fmtMi(M.a5.ebitda)+'</strong> de EBITDA, uma margem de <strong>'+fmtPct(M.a5.margemEbitda,1)+'</strong>. '+
+    (M.breakEven ? 'A operação passa a se sustentar sozinha dentro do <strong>Ano '+M.breakEven+'</strong>. ' : 'A operação não atinge break-even dentro dos cinco anos neste cenário. ')+
+    'O resultado vem de '+lista+' operando sobre a mesma base de clientes: é a <strong>orquestração</strong> — coordenar vários provedores, moedas e rotas de pagamento por trás de uma interface única, escolhendo o melhor caminho para cada operação sem que o cliente precise saber disso — que permite somar verticais sem somar estrutura. '+
+    (S.licencaOn ? 'A licença própria acrescenta '+fmtMi(M.a5.ganhoLicenca)+' ao resultado do Ano 5, por redução de custo e não por receita nova. ' : '')+
+    'Com múltiplo de saída de <strong>'+fmtX(S.multiploSaida,0)+'</strong> e '+fmtPct(S.pctVendido,0)+' de participação vendida, os R$ 17 milhões investidos se transformam em '+
+    '<strong>'+fmtMi(M.participacao)+'</strong>, o equivalente a '+fmtX(M.moicTotal)+' o capital e '+fmtPct(M.tirTotal,1)+' ao ano.';
+}
+
+function painelResumo(){
+  var comp = [
+    {rot:'COMEX',           v:M.a5.tpvComex,  cor:CORES.comex},
+    {rot:'Remessas',        v:M.a5.tpvRem,    cor:CORES.remessas},
+    {rot:'Cripto',          v:M.a5.tpvCripto, cor:CORES.cripto}
+  ].filter(function(p){ return p.v>0; });
+
+  var barras = M.ano.map(function(o,i){
+    return {rot:'Ano '+(i+1), v:o.ebitda, rotVal:nf(o.ebitda,1)};
+  });
+
+  var h = '<div class="cartao"><p class="narrativa" data-testid="narrativa">'+narrativa()+'</p></div>';
+  h += '<div class="grade2">';
+  h += '<div class="cartao"><div class="cartao-titulo">EBITDA por ano '+htmlAjuda('ebitda')+'</div>'+
+       graficoBarras(barras)+'<div class="legenda"><span>Valores em R$ milhões. Barras vermelhas indicam resultado negativo.</span></div></div>';
+  h += '<div class="cartao"><div class="cartao-titulo">Composição do TPV no Ano 5 '+htmlAjuda('tpv')+'</div>'+
+       '<div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">'+graficoRosca(comp)+
+       '<div style="flex:1;min-width:150px">'+comp.map(function(p){
+          return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12.5px">'+
+                 '<i style="width:10px;height:10px;border-radius:3px;background:'+p.cor+';display:inline-block"></i>'+
+                 '<span style="flex:1">'+p.rot+'</span><b>'+fmtBi(p.v)+'</b></div>';
+       }).join('')+'</div></div></div>';
+  h += '</div>';
+
+  h += '<div class="cartao"><div class="cartao-titulo">Verificação do modelo</div>'+
+       '<div class="faixa-verificacao" data-testid="verificacao">Com os padrões do plano (COMEX 4.000 × R$ 733 mil + 50 × R$ 4.200 mil, remessas 3.000 × R$ 419 mil, custo 0,40%, cripto e licença desligadas), o Ano 5 deve dar aproximadamente: TPV R$ 4,40 bi · receita R$ 63,80 mi · provedores R$ 17,60 mi · tributos R$ 5,10 mi · margem de contribuição R$ 41,10 mi · OPEX R$ 3,048 mi · EBITDA em torno de R$ 36,2 mi.<br><br>'+
+       '<b>Cenário atual:</b> TPV '+fmtBi(M.a5.tpvTotal)+' · receita '+fmtMi(M.a5.receitaBruta)+' · provedores '+fmtMi(M.a5.custoFiat)+' · tributos '+fmtMi(M.a5.tributos)+' · margem de contribuição '+fmtMi(M.a5.margemContrib)+' · OPEX '+fmtMi(M.a5.opex,3)+' · EBITDA '+fmtMi(M.a5.ebitda)+'.</div></div>';
+  return h;
+}
+
+function linhaPL(rot, chave, opc){
+  opc = opc||{};
+  var td = M.ano.map(function(o){
+    var v = o[chave];
+    return '<td'+(v<0?' class="neg"':'')+'>'+nf(v, opc.dec===undefined?2:opc.dec)+'</td>';
+  }).join('');
+  var ac = opc.semAcum ? '<td>—</td>' : '<td>'+nf(M.acum[chave], opc.dec===undefined?2:opc.dec)+'</td>';
+  return '<tr'+(opc.destaque?' class="destaque"':'')+'><td>'+rot+(opc.tip?' '+htmlAjuda(opc.tip):'')+'</td>'+td+ac+'</tr>';
+}
+
+function painelPL(){
+  var h = '<div class="cartao"><div class="cartao-titulo">Demonstrativo projetado <span class="pill">R$ milhões, salvo TPV em R$ bilhões</span></div>'+
+    '<div class="tab-rolagem"><table class="dados" data-testid="tabela-pl"><thead><tr><th>Linha</th>'+
+    M.ano.map(function(o,i){ return '<th>Ano '+(i+1)+'</th>'; }).join('')+'<th>Acumulado</th></tr></thead><tbody>';
+
+  h += '<tr class="grupo"><td colspan="7">Volume (TPV, R$ bilhões)</td></tr>';
+  h += linhaPL('TPV COMEX','tpvComex',{tip:'tpv'});
+  h += linhaPL('TPV remessas','tpvRem');
+  if(S.criptoOn) h += linhaPL('TPV cripto','tpvCripto');
+  h += linhaPL('TPV total','tpvTotal',{destaque:true});
+
+  h += '<tr class="grupo"><td colspan="7">Receita</td></tr>';
+  h += linhaPL('Receita COMEX','receitaComex');
+  h += linhaPL('Receita remessas','receitaRem');
+  if(S.criptoOn) h += linhaPL('Receita cripto','receitaCripto');
+  h += linhaPL('Receita bruta','receitaBruta',{destaque:true, tip:'receita'});
+
+  h += '<tr class="grupo"><td colspan="7">Custos diretos e impostos</td></tr>';
+  h += linhaPL('Custo com provedores (fiat)','custoFiat',{tip:'custoExec'});
+  if(S.criptoOn) h += linhaPL('Custo de liquidez cripto','custoCripto');
+  h += linhaPL('Custo de execução','custoExecucao');
+  h += linhaPL('Provisão tributária','tributos',{tip:'tributos'});
+  h += linhaPL('Margem de contribuição','margemContrib',{destaque:true, tip:'margemContrib'});
+
+  h += '<tr class="grupo"><td colspan="7">Estrutura e aquisição</td></tr>';
+  h += linhaPL('OPEX','opex',{dec:3, tip:'opex'});
+  h += linhaPL('GTM (aquisição de clientes)','gtm',{dec:3, tip:'gtm'});
+  if(S.licencaOn) h += linhaPL('Ganho de licença própria','ganhoLicenca',{dec:3, tip:'licenca'});
+
+  h += '<tr class="grupo"><td colspan="7">Resultado</td></tr>';
+  h += linhaPL('EBITDA','ebitda',{destaque:true, tip:'ebitda'});
+  h += '<tr class="destaque"><td>Margem EBITDA '+htmlAjuda('margemEbitda')+'</td>'+
+       M.ano.map(function(o){ return '<td'+(o.margemEbitda<0?' class="neg"':'')+'>'+fmtPct(o.margemEbitda,1)+'</td>'; }).join('')+
+       '<td>'+fmtPct(M.acum.margemEbitda,1)+'</td></tr>';
+
+  h += '<tr class="grupo"><td colspan="7">Base de clientes</td></tr>';
+  h += '<tr><td>Clientes ativos (total)</td>'+M.ano.map(function(o){ return '<td>'+fmtInt(o.totalClientes)+'</td>'; }).join('')+'<td>—</td></tr>';
+  h += '<tr><td>Clientes novos no ano '+htmlAjuda('cac')+'</td>'+M.ano.map(function(o){ return '<td>'+fmtInt(o.novosClientes)+'</td>'; }).join('')+'<td>'+fmtInt(M.ano.reduce(function(a,o){return a+o.novosClientes;},0))+'</td></tr>';
+
+  h += '</tbody></table></div>';
+  h += '<div class="legenda"><span>Break-even '+htmlAjuda('breakEven')+': '+(M.breakEven?'dentro do Ano '+M.breakEven:'não ocorre em 5 anos')+'</span></div></div>';
+
+  h += '<div class="cartao"><div class="cartao-titulo">OPEX por categoria <span class="pill">R$ mil por ano</span></div>'+
+       '<div class="tab-rolagem"><table class="dados" data-testid="tabela-opex"><thead><tr><th>Categoria</th><th>Ano 1</th><th>Ano 2</th><th>Ano 3</th><th>Ano 4</th><th>Ano 5</th><th>Acumulado</th></tr></thead><tbody>';
+  OPEX_CATEGORIAS.forEach(function(cat,k){
+    var soma=0, tds='';
+    for(var i=0;i<5;i++){ var v=opexCategoriaValor(k,i)*S.multOpex; soma+=v; tds+='<td>'+nf(v,1)+'</td>'; }
+    h += '<tr><td>'+cat.nome+'</td>'+tds+'<td>'+nf(soma,1)+'</td></tr>';
+  });
+  var t5=0, tds5='';
+  for(var i3=0;i3<5;i3++){ var tv=opexBaseAno(i3)*S.multOpex*1000; t5+=tv; tds5+='<td>'+nf(tv,1)+'</td>'; }
+  h += '<tr class="destaque"><td>Total</td>'+tds5+'<td>'+nf(t5,1)+'</td></tr>';
+  h += '</tbody></table></div></div>';
+  return h;
+}
+
+function cartaoMercado(o){
+  return '<div class="cartao" data-testid="mercado-'+o.id+'">'+
+    '<div class="cartao-titulo"><span class="faixa-vertical" style="background:'+o.cor+'"></span>'+o.titulo+'</div>'+
+    '<div class="metrica"><div class="metrica-rot">TAM '+htmlAjuda('tam')+'</div><div class="metrica-val">'+o.tam+'</div><div class="metrica-sub">'+o.fonteTam+'</div></div>'+
+    (o.sam ? '<div class="metrica"><div class="metrica-rot">SAM '+htmlAjuda('sam')+'</div><div class="metrica-val">'+o.sam+'</div><div class="metrica-sub">'+o.fonteSam+'</div></div>' : '')+
+    '<div class="metrica"><div class="metrica-rot">SOM — projetado no Ano 5 '+htmlAjuda('som')+'</div><div class="metrica-val">'+o.som+'</div>'+
+    '<div class="metrica-sub" style="margin-top:8px">'+semaforo(o.pen)+'</div></div>'+
+    (o.extra||'')+'</div>';
+}
+
+function painelMercado(){
+  var h = '<div class="grade3">';
+  h += cartaoMercado({
+    id:'comex-mpe', titulo:'COMEX — micro e pequenas', cor:CORES.comex,
+    tam: fmtBi(MERCADO.tamComex.valor,0), fonteTam: MERCADO.tamComex.fonte,
+    sam: fmtBi(MERCADO.samComexMpe.valor), fonteSam: MERCADO.samComexMpe.fonte,
+    som: fmtBi(M.a5.tpvComexMPE), pen: M.pen.comexValor,
+    extra: '<div class="metrica"><div class="metrica-rot">Penetração por número de empresas '+htmlAjuda('penetracao')+'</div>'+
+           '<div class="metrica-val">'+fmtPct(M.pen.comexContagem,2)+'</div>'+
+           '<div class="metrica-sub">'+fmtInt(S.clientesMPE5)+' de '+fmtInt(MERCADO.universoMpe.valor)+' empresas · '+MERCADO.universoMpe.fonte+'</div></div>'
+  });
+  h += cartaoMercado({
+    id:'comex-med', titulo:'COMEX — médias empresas', cor:CORES.comex,
+    tam: fmtBi(MERCADO.tamComex.valor,0), fonteTam: MERCADO.tamComex.fonte,
+    sam: fmtBi(MERCADO.samComexMedias.valor,1), fonteSam: MERCADO.samComexMedias.fonte,
+    som: fmtBi(M.a5.tpvComexMed), pen: M.pen.medias,
+    extra: '<div class="metrica"><div class="metrica-rot">Clientes no Ano 5</div><div class="metrica-val">'+fmtInt(S.clientesMed5)+'</div>'+
+           '<div class="metrica-sub">Ticket médio de '+fmtMil(M.a5.tkMed)+' por ano</div></div>'
+  });
+  h += cartaoMercado({
+    id:'remessas', titulo:'Remessas', cor:CORES.remessas,
+    tam: fmtBi(MERCADO.tamRemessas.valor,0), fonteTam: MERCADO.tamRemessas.fonte,
+    sam: fmtBi(MERCADO.tamRemessasPjMin.valor,0)+' – '+fmtBi(MERCADO.tamRemessasPjMax.valor,0), fonteSam: 'Pessoa jurídica — '+MERCADO.tamRemessasPjMin.fonte,
+    som: fmtBi(M.a5.tpvRem), pen: M.pen.remessas,
+    extra: '<div class="metrica"><div class="metrica-rot">Clientes no Ano 5</div><div class="metrica-val">'+fmtInt(S.clientesRem5)+'</div>'+
+           '<div class="metrica-sub">Ticket médio de '+fmtMil(M.a5.tkRem)+' por ano</div></div>'
+  });
+  if(S.criptoOn){
+    h += cartaoMercado({
+      id:'cripto', titulo:'Cripto', cor:CORES.cripto,
+      tam: fmtBi(MERCADO.tamCripto.valor,1), fonteTam: MERCADO.tamCripto.fonte,
+      sam: fmtBi(MERCADO.samCripto.valor,0), fonteSam: 'Segmento de stablecoins — '+MERCADO.samCripto.fonte,
+      som: fmtBi(M.a5.tpvCripto), pen: M.pen.cripto
+    });
+  }
+  h += '</div>';
+
+  var partes = [
+    {rot:'COMEX micro e pequenas', v:M.a5.tpvComexMPE, cor:CORES.comex},
+    {rot:'COMEX médias',           v:M.a5.tpvComexMed, cor:'#4E8CC4'},
+    {rot:'Remessas',               v:M.a5.tpvRem,      cor:CORES.remessas},
+    {rot:'Cripto',                 v:M.a5.tpvCripto,   cor:CORES.cripto}
+  ].filter(function(p){ return p.v>0; });
+
+  h += '<div class="cartao"><div class="cartao-titulo">Proporção do volume do Ano 5</div>'+
+       barraEmpilhada(partes)+legenda(partes)+'</div>';
+
+  h += '<div class="cartao"><div class="cartao-titulo">Legenda do semáforo</div>'+
+       '<div style="display:flex;gap:14px;flex-wrap:wrap">'+
+       '<span class="semaforo sem-verde">até 5% · confortável</span>'+
+       '<span class="semaforo sem-ambar">de 5% a 15% · exige atenção</span>'+
+       '<span class="semaforo sem-vermelho">acima de 15% · agressivo</span></div>'+
+       '<div style="font-size:12.5px;color:#6B7574;margin-top:12px;line-height:1.55">O semáforo indica o quanto a projeção depende de conquistar uma fatia grande do mercado. Quanto menor a penetração necessária, menos o plano depende de um cenário perfeito.</div></div>';
+
+  h += '<div class="grade2"><div class="cartao" data-testid="gap-penetracao"><div class="cartao-titulo">Captura parcial em COMEX '+htmlAjuda('penetracao')+'</div>'+
+       '<div class="metrica"><div class="metrica-rot">Por número de empresas</div><div class="metrica-val">'+fmtPct(M.pen.comexContagem,2)+'</div></div>'+
+       '<div class="metrica"><div class="metrica-rot">Por valor movimentado</div><div class="metrica-val">'+fmtPct(M.pen.comexValor,2)+'</div></div>'+
+       '<div class="metrica" style="border-bottom:0"><div class="metrica-rot">Diferença entre as duas medidas</div><div class="metrica-val">'+nf(M.gapPenetracao*100,2)+' pontos percentuais</div>'+
+       '<div class="metrica-sub" style="line-height:1.55;margin-top:6px">A diferença entre as duas medidas é a captura parcial: o cliente não troca de banco, a BROSBNK captura parte do fluxo dele.</div></div></div>';
+
+  h += '<div class="cartao"><div class="cartao-titulo">Ticket do universo × ticket do plano</div>'+
+       '<div class="metrica"><div class="metrica-rot">Ticket médio do universo de MPEs</div><div class="metrica-val">'+fmtMil(M.tkUniverso)+'</div>'+
+       '<div class="metrica-sub">'+fmtBi(MERCADO.samComexMpe.valor)+' ÷ '+fmtInt(MERCADO.universoMpe.valor)+' empresas</div></div>'+
+       '<div class="metrica"><div class="metrica-rot">Ticket escolhido no cenário</div><div class="metrica-val">'+fmtMil(S.tkMPE5)+'</div></div>'+
+       '<div class="metrica" style="border-bottom:0"><div class="metrica-rot">Percentual de captura do fluxo do cliente</div><div class="metrica-val">'+fmtPct(M.capturaTicket,1)+'</div>'+
+       '<div class="metrica-sub" style="line-height:1.55;margin-top:6px">É a fatia do movimento anual de cada empresa que passa pela plataforma. Acima de 100% significaria capturar mais do que a empresa média movimenta.</div></div></div></div>';
+  return h;
+}
+
+function painelClientes(){
+  var series = [
+    {rot:'COMEX MPE', cor:CORES.comex,    v:M.ano.map(function(o){return o.clientesMPE;})},
+    {rot:'COMEX médias', cor:'#4E8CC4',   v:M.ano.map(function(o){return o.clientesMed;})},
+    {rot:'Remessas', cor:CORES.remessas,  v:M.ano.map(function(o){return o.clientesRem;})}
+  ];
+  var h = '<div class="grade2">';
+  h += '<div class="cartao"><div class="cartao-titulo">Curva de clientes por vertical</div>'+
+       graficoLinhas(series, ['Ano 1','Ano 2','Ano 3','Ano 4','Ano 5'])+legenda(series)+'</div>';
+  h += '<div class="cartao"><div class="cartao-titulo">Economia por cliente <span class="pill">Ano 5</span></div>'+
+       '<div class="metrica"><div class="metrica-rot">Margem por cliente '+htmlAjuda('margemContrib')+'</div><div class="metrica-val">'+fmtRS(M.a5.margemPorCliente)+' por ano</div>'+
+       '<div class="metrica-sub">'+fmtMi(M.a5.margemContrib)+' ÷ '+fmtInt(M.a5.totalClientes)+' clientes</div></div>'+
+       '<div class="metrica"><div class="metrica-rot">CAC '+htmlAjuda('cac')+'<span class="sigla">Customer Acquisition Cost — custo de aquisição de cliente</span></div><div class="metrica-val">'+fmtRS(S.cac)+'</div></div>'+
+       '<div class="metrica" style="border-bottom:0"><div class="metrica-rot">Payback de CAC '+htmlAjuda('payback')+'</div><div class="metrica-val" data-testid="payback">'+(isFinite(M.a5.paybackDias)?nf(M.a5.paybackDias,0)+' dias':'—')+'</div>'+
+       '<div class="metrica-sub">No Ano 1: '+(isFinite(M.ano[0].paybackDias)?nf(M.ano[0].paybackDias,0)+' dias':'—')+'</div></div></div>';
+  h += '</div>';
+
+  h += '<div class="grade3">';
+  h += '<div class="cartao"><div class="cartao-titulo">LTV nominal em 5 anos '+htmlAjuda('ltv')+'</div>'+
+       '<div class="metrica-val" style="font-size:32px" data-testid="ltv-nominal">'+fmtRS(M.ltvNominal)+'</div>'+
+       '<div class="metrica-sub" style="margin-top:6px">Descontado a '+fmtPct(S.taxaDesconto,0)+' ao ano: <b>'+fmtRS(M.ltvDescontado)+'</b> '+htmlAjuda('descontado')+'</div>'+
+       '<div class="metrica-sub" style="margin-top:8px;line-height:1.55">Lifetime Value — quanto um cliente gera de margem ao longo do tempo em que fica na base.</div></div>';
+  h += '<div class="cartao"><div class="cartao-titulo">LTV / CAC '+htmlAjuda('ltvCac')+'</div>'+
+       '<div class="metrica-val" style="font-size:32px" data-testid="ltv-cac">'+nf(M.ltvSobreCac,1)+' vezes</div>'+
+       '<div class="metrica-sub" style="margin-top:6px">Considerando o valor descontado: '+nf(M.ltvDescSobreCac,1)+' vezes</div>'+
+       '<div class="metrica-sub" style="margin-top:8px;line-height:1.55">Quantas vezes o cliente devolve o que custou trazê-lo.</div></div>';
+  h += '<div class="cartao"><div class="cartao-titulo">Churn declarado '+htmlAjuda('churn')+'</div>'+
+       '<div class="metrica-val" style="font-size:32px" data-testid="churn-declarado">'+fmtPct(S.churn,1)+' ao ano</div>'+
+       '<div class="metrica-sub" style="margin-top:8px;line-height:1.55">Não é ao mês. O cliente é considerado inativo com 12 meses sem operar e só recebe baixa com 18 meses, porque o ciclo de comércio exterior de uma pequena empresa não é mensal.</div></div>';
+  h += '</div>';
+
+  h += '<div class="cartao"><div class="cartao-titulo">Clientes e economia por ano</div><div class="tab-rolagem">'+
+       '<table class="dados" data-testid="tabela-clientes"><thead><tr><th>Linha</th><th>Ano 1</th><th>Ano 2</th><th>Ano 3</th><th>Ano 4</th><th>Ano 5</th></tr></thead><tbody>'+
+       '<tr><td>Clientes COMEX — micro e pequenas</td>'+M.ano.map(function(o){return '<td>'+fmtInt(o.clientesMPE)+'</td>';}).join('')+'</tr>'+
+       '<tr><td>Clientes COMEX — médias</td>'+M.ano.map(function(o){return '<td>'+fmtInt(o.clientesMed)+'</td>';}).join('')+'</tr>'+
+       '<tr><td>Clientes de remessas</td>'+M.ano.map(function(o){return '<td>'+fmtInt(o.clientesRem)+'</td>';}).join('')+'</tr>'+
+       '<tr class="destaque"><td>Total de clientes</td>'+M.ano.map(function(o){return '<td>'+fmtInt(o.totalClientes)+'</td>';}).join('')+'</tr>'+
+       '<tr><td>Clientes novos no ano</td>'+M.ano.map(function(o){return '<td>'+fmtInt(o.novosClientes)+'</td>';}).join('')+'</tr>'+
+       '<tr><td>Ticket médio MPE (R$ mil)</td>'+M.ano.map(function(o){return '<td>'+nf(o.tkMPE,1)+'</td>';}).join('')+'</tr>'+
+       '<tr><td>Margem por cliente (R$/ano)</td>'+M.ano.map(function(o){return '<td>'+fmtInt(o.margemPorCliente)+'</td>';}).join('')+'</tr>'+
+       '<tr><td>Payback de CAC (dias)</td>'+M.ano.map(function(o){return '<td>'+(isFinite(o.paybackDias)?nf(o.paybackDias,0):'—')+'</td>';}).join('')+'</tr>'+
+       '</tbody></table></div></div>';
+  return h;
+}
+
+function painelRetorno(){
+  var h = '<div class="grade2">';
+  h += '<div class="cartao"><div class="cartao-titulo">Estrutura da rodada</div>'+
+       '<div class="metrica"><div class="metrica-rot">Investimento total</div><div class="metrica-val">R$ 17,00 mi</div></div>'+
+       '<div class="metrica"><div class="metrica-rot">Parcela primária <span class="sigla">entra no caixa da empresa</span></div><div class="metrica-val">R$ 12,00 mi</div></div>'+
+       '<div class="metrica"><div class="metrica-rot">Parcela secundária <span class="sigla">vai para um sócio atual que vende participação</span></div><div class="metrica-val">R$ 5,00 mi</div></div>'+
+       '<div class="metrica" style="border-bottom:0"><div class="metrica-rot">Participação vendida</div><div class="metrica-val">'+fmtPct(S.pctVendido,0)+'</div></div>'+
+       '<div class="aviso aviso-info" data-testid="frase-rodada">R$ 17 milhões, sendo R$ 12 milhões primários e R$ 5 milhões secundários.</div></div>';
+  h += '<div class="cartao"><div class="cartao-titulo">Saída projetada</div>'+
+       '<div class="metrica"><div class="metrica-rot">EBITDA do Ano 5 '+htmlAjuda('ebitda')+'</div><div class="metrica-val">'+fmtMi(M.ebitdaAno5)+'</div></div>'+
+       '<div class="metrica"><div class="metrica-rot">Múltiplo de saída</div><div class="metrica-val">'+fmtX(S.multiploSaida,0)+'</div></div>'+
+       '<div class="metrica"><div class="metrica-rot">Valuation '+htmlAjuda('valuation')+'</div><div class="metrica-val" data-testid="valuation">'+fmtMi(M.valuation)+'</div>'+
+       '<div class="metrica-sub">'+fmtMi(M.ebitdaAno5)+' × '+fmtX(S.multiploSaida,0)+'</div></div>'+
+       '<div class="metrica" style="border-bottom:0"><div class="metrica-rot">Valor da participação '+htmlAjuda('participacao')+'</div><div class="metrica-val" data-testid="participacao">'+fmtMi(M.participacao)+'</div>'+
+       '<div class="metrica-sub">'+fmtMi(M.valuation)+' × '+fmtPct(S.pctVendido,0)+'</div></div></div>';
+  h += '</div>';
+
+  h += '<div class="cartao"><div class="cartao-titulo">Múltiplo sobre o capital investido '+htmlAjuda('moic')+'</div>'+
+       '<div class="moic-par">'+
+       '<div class="moic-forte" data-testid="moic-total"><div class="metrica-rot">MOIC sobre o total desembolsado</div>'+
+       '<div class="metrica-val">'+fmtX(M.moicTotal)+'</div>'+
+       '<div class="metrica-sub">'+fmtMi(M.participacao)+' ÷ R$ 17,00 mi · a leitura conservadora</div></div>'+
+       '<div class="moic-fraco" data-testid="moic-primario"><div class="metrica-rot">MOIC sobre a parcela primária</div>'+
+       '<div class="metrica-val">'+fmtX(M.moicPrimario)+'</div>'+
+       '<div class="metrica-sub">'+fmtMi(M.participacao)+' ÷ R$ 12,00 mi</div></div></div>'+
+       '<div style="font-size:12.5px;color:#6B7574;margin-top:14px;line-height:1.55">As duas contas são corretas e por isso as duas aparecem. O MOIC não considera o tempo: o mesmo múltiplo em 5 ou em 15 anos seria o mesmo número. Quem cuida do tempo é a TIR.</div></div>';
+
+  h += '<div class="grade2">'+
+       '<div class="cartao"><div class="cartao-titulo">TIR sobre o total '+htmlAjuda('tir')+'<span class="pill">Taxa Interna de Retorno</span></div>'+
+       '<div class="metrica-val" style="font-size:34px" data-testid="tir-total">'+fmtPct(M.tirTotal,1)+' ao ano</div>'+
+       '<div class="metrica-sub" style="margin-top:6px">Transformar R$ 17 milhões em '+fmtMi(M.participacao)+' em 5 anos.</div></div>'+
+       '<div class="cartao"><div class="cartao-titulo">TIR sobre a parcela primária</div>'+
+       '<div class="metrica-val" style="font-size:34px" data-testid="tir-primario">'+fmtPct(M.tirPrimario,1)+' ao ano</div>'+
+       '<div class="metrica-sub" style="margin-top:6px">Sobre os R$ 12 milhões que entraram na operação.</div></div></div>';
+  return h;
+}
+
+function painelSensibilidade(){
+  var h = '<div class="cartao"><div class="cartao-titulo">Retorno por múltiplo de saída '+htmlAjuda('valuation')+'</div><div class="tab-rolagem">'+
+    '<table class="dados" data-testid="tabela-sensibilidade"><thead><tr><th>Múltiplo</th><th>Valuation (R$ mi)</th><th>Participação (R$ mi)</th><th>MOIC total</th><th>MOIC primário</th><th>TIR ao ano</th></tr></thead><tbody>';
+  M.sensibilidade.forEach(function(l){
+    var sel = (l.multiplo===Math.round(S.multiploSaida)) ? ' class="selecionada"' : '';
+    h += '<tr'+sel+' data-testid="sens-'+l.multiplo+'"><td>'+nf(l.multiplo,0)+'x</td><td>'+nf(l.valuation,1)+'</td><td>'+nf(l.participacao,2)+'</td>'+
+         '<td>'+fmtX(l.moicTotal)+'</td><td>'+fmtX(l.moicPrimario)+'</td><td>'+fmtPct(l.tir,1)+'</td></tr>';
+  });
+  h += '</tbody></table></div><div class="legenda"><span>A linha destacada é o múltiplo selecionado nos controles.</span></div></div>';
+
+  var barras = M.sensibilidade.map(function(l){
+    return {rot:nf(l.multiplo,0)+'x', v:l.moicTotal, rotVal:fmtX(l.moicTotal),
+            cor: l.multiplo===Math.round(S.multiploSaida) ? '#0C4E54' : '#7FB6BC'};
+  });
+  h += '<div class="cartao"><div class="cartao-titulo">MOIC por múltiplo '+htmlAjuda('moic')+'</div>'+graficoBarras(barras,{h:230})+
+       '<div class="legenda"><span>MOIC sobre o total desembolsado de R$ 17 milhões.</span></div></div>';
+  return h;
+}
+
+function painelCenarios(){
+  var h = '<div class="cartao"><div class="cartao-titulo">Cenários salvos</div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">'+
+    '<button class="btn btn-primario" data-acao="salvarCenario" data-testid="btn-salvar-2">Salvar cenário atual</button>'+
+    '<button class="btn" data-acao="gerarLink" data-testid="btn-gerar-link">Gerar link editável</button>'+
+    '<button class="btn" data-acao="gerarLinkTravado" data-testid="btn-gerar-link-travado">Gerar link travado</button>'+
+    '<button class="btn" data-acao="restaurarPadrao" data-testid="btn-restaurar">Restaurar caso-base</button></div>'+
+    '<div style="font-size:12.5px;color:#6B7574;line-height:1.55">O link codifica o cenário inteiro no próprio endereço da página — não há servidor nem banco de dados envolvido. '+
+    'O <b>link editável</b> abre com os controles ativos: quem recebe pode explorar variações a partir do seu cenário. '+
+    'O <b>link travado</b> abre somente leitura, com os controles bloqueados, mostrando exatamente os números que você calculou. '+
+    'Nos dois casos aparece a faixa com a data do compartilhamento e o aviso de projeção gerencial.<br><br>'+
+    'Os cenários salvos abaixo ficam disponíveis enquanto esta janela estiver aberta.</div>';
+  h += '<div id="linkGerado"></div></div>';
+
+  if(!CENARIOS.length){
+    h += '<div class="cartao"><div class="vazio" data-testid="cenarios-vazio">Nenhum cenário salvo ainda.</div></div>';
+    return h;
+  }
+  h += '<div class="cartao"><div class="cartao-titulo">Comparação</div><div class="tab-rolagem">'+
+       '<table class="dados" data-testid="tabela-cenarios"><thead><tr><th>Indicador</th><th>Cenário atual</th>'+
+       CENARIOS.map(function(c,i){ return '<th>'+esc(c.nome)+'</th>'; }).join('')+'</tr></thead><tbody>';
+  var linhas = [
+    ['TPV Ano 5',        function(mm){ return fmtBi(mm.a5.tpvTotal); }],
+    ['Receita bruta A5', function(mm){ return fmtMi(mm.a5.receitaBruta); }],
+    ['EBITDA Ano 5',     function(mm){ return fmtMi(mm.a5.ebitda); }],
+    ['Margem EBITDA A5', function(mm){ return fmtPct(mm.a5.margemEbitda,1); }],
+    ['Break-even',       function(mm){ return mm.breakEven ? 'Ano '+mm.breakEven : '—'; }],
+    ['Valuation',        function(mm){ return fmtMi(mm.valuation); }],
+    ['MOIC total',       function(mm){ return fmtX(mm.moicTotal); }],
+    ['MOIC primário',    function(mm){ return fmtX(mm.moicPrimario); }],
+    ['TIR total',        function(mm){ return fmtPct(mm.tirTotal,1); }],
+    ['LTV/CAC',          function(mm){ return nf(mm.ltvSobreCac,1)+'x'; }]
+  ];
+  linhas.forEach(function(l){
+    h += '<tr'+(l[0].indexOf('EBITDA')>=0||l[0].indexOf('MOIC')>=0?' class="destaque"':'')+'><td>'+l[0]+'</td><td>'+l[1](M)+'</td>'+
+         CENARIOS.map(function(c){ return '<td>'+l[1](c.m)+'</td>'; }).join('')+'</tr>';
+  });
+  h += '</tbody></table></div>';
+  h += '<div style="margin-top:14px">'+CENARIOS.map(function(c,i){
+        return '<div class="cenario-linha"><b style="flex:1">'+esc(c.nome)+'</b>'+
+               '<span style="font-size:11.5px;color:#8A9392">'+esc(c.criadoEm)+'</span>'+
+               '<button class="btn btn-pequeno" data-acao="carregarCenario" data-idx="'+i+'">Carregar</button>'+
+               '<button class="btn btn-pequeno" data-acao="excluirCenario" data-idx="'+i+'">Excluir</button></div>';
+      }).join('')+'</div></div>';
+  return h;
+}
+
+function renderPaineis(){
+  var abas = ABAS.filter(function(a){ return !(SOMENTE_LEITURA && a.id==='cenarios'); });
+  if(SOMENTE_LEITURA && abaAtiva==='cenarios') abaAtiva = 'resumo';
+  document.getElementById('abas').innerHTML = abas.map(function(a){
+    return '<button role="tab" data-aba="'+a.id+'" data-testid="aba-'+a.id+'" aria-selected="'+(a.id===abaAtiva)+'">'+a.rot+'</button>';
+  }).join('');
+  var conteudo = '';
+  switch(abaAtiva){
+    case 'resumo':        conteudo = painelResumo(); break;
+    case 'pl':            conteudo = painelPL(); break;
+    case 'mercado':       conteudo = painelMercado(); break;
+    case 'clientes':      conteudo = painelClientes(); break;
+    case 'retorno':       conteudo = painelRetorno(); break;
+    case 'sensibilidade': conteudo = painelSensibilidade(); break;
+    case 'cenarios':      conteudo = painelCenarios(); break;
+  }
+  document.getElementById('paineis').innerHTML = '<div class="painel ativo" data-testid="painel-'+abaAtiva+'">'+conteudo+'</div>';
+}
+
+function renderGlossario(filtro){
+  filtro = (filtro||'').toLowerCase();
+  var lista = GLOSSARIO.filter(function(v){
+    if(!filtro) return true;
+    return (v[0]+' '+v[1]+' '+v[2]).toLowerCase().indexOf(filtro) >= 0;
+  });
+  document.getElementById('listaGlossario').innerHTML = lista.length ? lista.map(function(v){
+    return '<div class="verbete"><h3>'+esc(v[0])+'</h3>'+(v[1]?'<span class="sigla">'+esc(v[1])+'</span>':'')+
+           '<p>'+preencherGlossario(v[2])+'</p></div>';
+  }).join('') : '<div class="vazio">Nenhum termo encontrado.</div>';
+}
+
+function render(){
+  M = calcular();
+  document.getElementById('modoApresentacao').setAttribute('aria-pressed', S.modo==='apresentacao');
+  document.getElementById('modoAvancado').setAttribute('aria-pressed', S.modo==='avancado');
+  renderControles();
+  renderKpis();
+  renderPaineis();
+  renderGlossario(document.getElementById('buscaGlossario').value);
+}
+
+
+/* ==========================================================================
+   10. Interação
+   ========================================================================== */
+
+var AVISO = 'Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno.';
+
+function abrirTip(alvo, html){
+  var tip = document.getElementById('tip');
+  tip.innerHTML = html;
+  tip.style.display = 'block';
+  var r = alvo.getBoundingClientRect();
+  var t = tip.getBoundingClientRect();
+  var x = Math.min(Math.max(8, r.left + r.width/2 - t.width/2), window.innerWidth - t.width - 8);
+  var y = r.top - t.height - 10;
+  if(y < 8) y = r.bottom + 10;
+  tip.style.left = x+'px';
+  tip.style.top  = y+'px';
+}
+function fecharTip(){ document.getElementById('tip').style.display='none'; }
+
+document.addEventListener('click', function(e){
+  var aj = e.target.closest ? e.target.closest('.ajuda') : null;
+  if(aj){
+    e.stopPropagation();
+    var ref = aj.getAttribute('data-tip');
+    var idx = aj.getAttribute('data-tiptxt');
+    var html = ref && TIPS[ref] ? TIPS[ref]() : (idx!==null ? '<b>'+CONTROLES[+idx].rot+'</b><br><br>'+CONTROLES[+idx].tip : '');
+    abrirTip(aj, html);
+    return;
+  }
+  fecharTip();
+
+  var aba = e.target.closest ? e.target.closest('[data-aba]') : null;
+  if(aba){ abaAtiva = aba.getAttribute('data-aba'); renderPaineis(); return; }
+
+  var acaoEl = e.target.closest ? e.target.closest('[data-acao]') : null;
+  if(acaoEl){ executarAcao(acaoEl.getAttribute('data-acao'), acaoEl); return; }
+});
+window.addEventListener('scroll', fecharTip, true);
+window.addEventListener('resize', fecharTip);
+
+document.addEventListener('input', function(e){
+  var el = e.target;
+  if(el.hasAttribute && el.hasAttribute('data-ctl')){
+    var c = CONTROLES.filter(function(x){ return x.k===el.getAttribute('data-ctl'); })[0];
+    if(c){ aplicarSlider(c, parseFloat(el.value)); atualizarLeve(c, el); }
+  } else if(el.hasAttribute && el.hasAttribute('data-opex')){
+    if(!S.opexCustom) S.opexCustom = OPEX_CATEGORIAS.map(function(c){ return c.v.slice(); });
+    var k = +el.getAttribute('data-opex'), i = +el.getAttribute('data-ano');
+    S.opexCustom[k][i] = parseFloat(el.value)||0;
+    agendarRender();
+  } else if(el.hasAttribute && el.hasAttribute('data-curva')){
+    var nome = el.getAttribute('data-curva'), j = +el.getAttribute('data-ano');
+    S[nome][j] = parseFloat(el.value)||0;
+    agendarRender();
+  } else if(el.id === 'buscaGlossario'){
+    renderGlossario(el.value);
+  }
+});
+
+/* Atualização leve: mexe no valor exibido na hora e recalcula os resultados
+   sem reconstruir a barra de controles (que roubaria o foco do slider). */
+var pendente = null;
+function agendarRender(){
+  if(pendente) cancelAnimationFrame(pendente);
+  pendente = requestAnimationFrame(function(){ pendente=null; render(); });
+}
+function atualizarLeve(c, el){
+  M = calcular();
+  var alvos = document.querySelectorAll('[data-testid="val-'+c.k+'"]');
+  for(var i=0;i<alvos.length;i++) alvos[i].textContent = valorExibido(c);
+  var gemeos = document.querySelectorAll('[data-ctl="'+c.k+'"]');
+  for(var j=0;j<gemeos.length;j++){ if(gemeos[j]!==el) gemeos[j].value = el.value; }
+  renderKpis();
+  renderPaineis();
+  renderGlossario(document.getElementById('buscaGlossario').value);
+  // avisos e travas que dependem do estado
+  var av = document.querySelector('[data-testid="aviso-ticket-remessa"]');
+  var precisa = S.tkRem5 > S.tkMPE5;
+  if(precisa !== !!av) renderControles();
+}
+
+document.addEventListener('change', function(e){
+  var el = e.target;
+  if(el.hasAttribute && el.hasAttribute('data-chave')){
+    var ch = el.getAttribute('data-chave');
+    S[ch] = el.checked;
+    avisoLicenca = false;
+    if(ch==='criptoOn' && !S.criptoOn && S.licencaOn){
+      S.licencaOn = false;
+      avisoLicenca = true;
+    }
+    render();
+  }
+});
+
+function executarAcao(acao, el){
+  if(acao==='resetOpex'){ S.opexCustom = null; render(); }
+  else if(acao==='resetCurva'){ S.fCli = F_CLI_PADRAO.slice(); S.fTk = F_TK_PADRAO.slice(); render(); }
+  else if(acao==='salvarCenario'){ abrirModalSalvar(); }
+  else if(acao==='gerarLink'){ gerarLink(false); }
+  else if(acao==='gerarLinkTravado'){ gerarLink(true); }
+  else if(acao==='copiarLink'){ copiarLink(); }
+  else if(acao==='restaurarPadrao'){ var modo=S.modo; S = estadoPadrao(); S.modo=modo; render(); }
+  else if(acao==='carregarCenario'){ var i=+el.getAttribute('data-idx'); S = JSON.parse(JSON.stringify(CENARIOS[i].estado)); render(); }
+  else if(acao==='excluirCenario'){ var j=+el.getAttribute('data-idx'); CENARIOS.splice(j,1); renderPaineis(); }
+}
+
+/* ---------- Cenários ---------- */
+
+function abrirModalSalvar(){
+  document.getElementById('modalSalvar').classList.add('aberto');
+  document.getElementById('sobreposicao').classList.add('aberta');
+  var inp = document.getElementById('nomeCenario');
+  inp.value = 'Cenário ' + (CENARIOS.length+1);
+  inp.focus(); inp.select();
+}
+function fecharModalSalvar(){
+  document.getElementById('modalSalvar').classList.remove('aberto');
+  document.getElementById('sobreposicao').classList.remove('aberta');
+}
+function salvarCenario(){
+  var nome = (document.getElementById('nomeCenario').value||'').trim() || ('Cenário '+(CENARIOS.length+1));
+  var estado = JSON.parse(JSON.stringify(S));
+  CENARIOS.push({ nome:nome, estado:estado, m:calcular(), criadoEm:dataHoraBR() });
+  fecharModalSalvar();
+  abaAtiva = 'cenarios';
+  render();
+}
+
+function codificar(obj){
+  var json = JSON.stringify(obj);
+  var bytes = new TextEncoder().encode(json);
+  var bin = '';
+  bytes.forEach(function(b){ bin += String.fromCharCode(b); });
+  return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function decodificar(txt){
+  var b64 = txt.replace(/-/g,'+').replace(/_/g,'/');
+  while(b64.length % 4) b64 += '=';
+  var bin = atob(b64);
+  var bytes = new Uint8Array(bin.length);
+  for(var i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+
+function gerarLink(travado){
+  var pacote = { e:S, d:new Date().toISOString() };
+  var hash = (travado ? '#/r/' : '#/c/') + codificar(pacote);
+  var base = location.href.split('#')[0];
+  var url = base + hash;
+  var local = location.protocol === 'file:';
+  var alvo = document.getElementById('linkGerado');
+  if(!alvo) return;
+  alvo.innerHTML = '<div class="aviso aviso-info" style="margin-top:14px" data-testid="bloco-link">'+
+    '<b>Link '+(travado?'travado — abre somente leitura':'editável — abre com os controles ativos')+'</b>'+
+    '<input class="busca" style="margin-top:8px" readonly value="'+esc(url)+'" data-testid="link-cenario" onclick="this.select()">'+
+    '<button class="btn btn-pequeno" data-acao="copiarLink" data-testid="btn-copiar-link">Copiar link</button>'+
+    (local ? '<div style="margin-top:10px;line-height:1.55">Este endereço começa com <b>file:///</b> porque o simulador está aberto como arquivo no seu computador — ele só funciona nesta máquina. Publique o arquivo em um endereço na internet e o mesmo link passa a funcionar para qualquer pessoa: o cenário viaja inteiro dentro da URL, sem servidor e sem banco de dados.</div>' : '')+
+    '</div>';
+  copiarLink();
+}
+
+function copiarLink(){
+  var inp = document.querySelector('[data-testid=link-cenario]');
+  if(!inp) return;
+  inp.focus(); inp.select();
+  try{ document.execCommand('copy'); }catch(err){}
+  var btn = document.querySelector('[data-testid=btn-copiar-link]');
+  if(btn){ btn.textContent = 'Link copiado'; setTimeout(function(){ btn.textContent = 'Copiar link'; }, 2000); }
+}
+
+function lerHash(){
+  var h = location.hash || '';
+  var travado = h.indexOf('#/r/') === 0;
+  if(h.indexOf('#/c/') !== 0 && !travado) return false;
+  try{
+    var p = decodificar(h.slice(4));
+    var base = estadoPadrao();
+    Object.keys(base).forEach(function(k){ if(p.e[k] !== undefined) base[k] = p.e[k]; });
+    S = base;
+    SOMENTE_LEITURA = travado;
+    var faixa = document.getElementById('faixaCompartilhado');
+    var dt = p.d ? new Date(p.d) : new Date();
+    faixa.textContent = 'Cenário compartilhado em ' + dataHoraBR(dt) + '. ' +
+      (travado ? 'Somente leitura — os controles estão travados. ' : 'Você pode alterar os controles e explorar variações. ') +
+      'Projeção gerencial.';
+    faixa.style.display = 'block';
+    if(travado) document.getElementById('btnSalvar').style.display = 'none';
+    return true;
+  }catch(err){ return false; }
+}
+
+/* ---------- Exportação: planilha ---------- */
+
+function premissasLista(){
+  return [
+    ['Modo', S.modo==='apresentacao'?'Apresentação':'Avançado'],
+    ['Clientes MPE no Ano 5', S.clientesMPE5],
+    ['Ticket médio MPE (R$ mil/ano)', S.tkMPE5],
+    ['Clientes médios no Ano 5', S.clientesMed5],
+    ['Ticket médio das médias (R$ mil/ano)', S.tkMed5],
+    ['Take rate COMEX', S.takeComex],
+    ['Clientes de remessas no Ano 5', S.clientesRem5],
+    ['Ticket médio de remessa (R$ mil/ano)', S.tkRem5],
+    ['Take rate remessas', S.takeRem],
+    ['Vertical cripto ligada', S.criptoOn?'Sim':'Não'],
+    ['TPV cripto Ano 5 (R$ bi)', S.criptoOn?S.tpvCripto5:0],
+    ['Take rate cripto', S.takeCripto],
+    ['Custo de liquidez cripto', S.custoLiqCripto],
+    ['Licença própria ligada', S.licencaOn?'Sim':'Não'],
+    ['Ganho de licença na vertical cripto', S.ganhoCripto],
+    ['Ganho de licença na vertical COMEX', S.ganhoComex],
+    ['Custo com provedores', S.custoProvedores],
+    ['Provisão tributária', S.aliquota],
+    ['Multiplicador de OPEX', S.multOpex],
+    ['CAC (R$ por cliente)', S.cac],
+    ['CAC de remessas (R$)', S.cacRem],
+    ['Churn ao ano', S.churn],
+    ['Múltiplo de saída', S.multiploSaida],
+    ['Investimento total (R$ mi)', INVESTIMENTO_TOTAL],
+    ['Parcela primária (R$ mi)', PARCELA_PRIMARIA],
+    ['Participação vendida', S.pctVendido],
+    ['Taxa de desconto ao ano', S.taxaDesconto],
+    ['Fatores de clientes', S.fCli.join(' · ')],
+    ['Fatores de maturação do ticket', S.fTk.join(' · ')],
+    ['Gerado em', dataHoraBR()],
+    ['Aviso', AVISO]
+  ];
+}
+
+function exportarXlsx(){
+  if(typeof XLSX === 'undefined'){ alert('A biblioteca de planilhas não carregou. Verifique a conexão com a internet e recarregue a página.'); return; }
+  var wb = XLSX.utils.book_new();
+  var anos = ['Ano 1','Ano 2','Ano 3','Ano 4','Ano 5'];
+
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(
+    [['Premissa','Valor']].concat(premissasLista())), 'Premissas');
+
+  function linha(rot, chave){ return [rot].concat(M.ano.map(function(o){ return o[chave]; })).concat([M.acum[chave]]); }
+  var pl = [['Linha'].concat(anos).concat(['Acumulado'])];
+  pl.push(['TPV COMEX (R$ bi)'].concat(M.ano.map(function(o){return o.tpvComex;})).concat([M.acum.tpvComex]));
+  pl.push(['TPV remessas (R$ bi)'].concat(M.ano.map(function(o){return o.tpvRem;})).concat([M.acum.tpvRem]));
+  pl.push(['TPV cripto (R$ bi)'].concat(M.ano.map(function(o){return o.tpvCripto;})).concat([M.acum.tpvCripto]));
+  pl.push(['TPV total (R$ bi)'].concat(M.ano.map(function(o){return o.tpvTotal;})).concat([M.acum.tpvTotal]));
+  ['receitaComex','receitaRem','receitaCripto','receitaBruta','custoFiat','custoCripto','custoExecucao',
+   'tributos','margemContrib','opex','gtm','ganhoLicenca','ebitda'].forEach(function(k){
+    var nomes = {receitaComex:'Receita COMEX',receitaRem:'Receita remessas',receitaCripto:'Receita cripto',
+      receitaBruta:'Receita bruta',custoFiat:'Custo com provedores (fiat)',custoCripto:'Custo de liquidez cripto',
+      custoExecucao:'Custo de execução',tributos:'Provisão tributária',margemContrib:'Margem de contribuição',
+      opex:'OPEX',gtm:'GTM',ganhoLicenca:'Ganho de licença própria',ebitda:'EBITDA'};
+    pl.push(linha(nomes[k]+' (R$ mi)', k));
+  });
+  pl.push(['Margem EBITDA'].concat(M.ano.map(function(o){return o.margemEbitda;})).concat([M.acum.margemEbitda]));
+  pl.push([]);
+  pl.push(['OPEX por categoria (R$ mil)'].concat(anos));
+  OPEX_CATEGORIAS.forEach(function(cat,k){
+    pl.push([cat.nome].concat([0,1,2,3,4].map(function(i){ return opexCategoriaValor(k,i)*S.multOpex; })));
+  });
+  pl.push(['Total OPEX'].concat([0,1,2,3,4].map(function(i){ return opexBaseAno(i)*S.multOpex*1000; })));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(pl), 'P&L');
+
+  var mk = [['Vertical','TAM (R$ bi)','SAM (R$ bi)','SOM Ano 5 (R$ bi)','Penetração','Fonte']];
+  mk.push(['COMEX — micro e pequenas', MERCADO.tamComex.valor, MERCADO.samComexMpe.valor, M.a5.tpvComexMPE, M.pen.comexValor, MERCADO.samComexMpe.fonte]);
+  mk.push(['COMEX — médias', MERCADO.tamComex.valor, MERCADO.samComexMedias.valor, M.a5.tpvComexMed, M.pen.medias, MERCADO.samComexMedias.fonte]);
+  mk.push(['Remessas', MERCADO.tamRemessas.valor, MERCADO.tamRemessasPjMin.valor, M.a5.tpvRem, M.pen.remessas, MERCADO.tamRemessas.fonte]);
+  mk.push(['Cripto', MERCADO.tamCripto.valor, MERCADO.samCripto.valor, M.a5.tpvCripto, M.pen.cripto, MERCADO.tamCripto.fonte]);
+  mk.push([]);
+  mk.push(['Universo de MPEs em COMEX (empresas)', MERCADO.universoMpe.valor,'','','',MERCADO.universoMpe.fonte]);
+  mk.push(['Penetração por número de empresas', M.pen.comexContagem]);
+  mk.push(['Penetração por valor (MPE)', M.pen.comexValor]);
+  mk.push(['Ticket médio do universo (R$ mil)', M.tkUniverso]);
+  mk.push(['Captura do fluxo do cliente', M.capturaTicket]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(mk), 'Mercado');
+
+  var cl = [['Linha'].concat(anos)];
+  cl.push(['Clientes COMEX — micro e pequenas'].concat(M.ano.map(function(o){return o.clientesMPE;})));
+  cl.push(['Clientes COMEX — médias'].concat(M.ano.map(function(o){return o.clientesMed;})));
+  cl.push(['Clientes de remessas'].concat(M.ano.map(function(o){return o.clientesRem;})));
+  cl.push(['Total de clientes'].concat(M.ano.map(function(o){return o.totalClientes;})));
+  cl.push(['Clientes novos no ano'].concat(M.ano.map(function(o){return o.novosClientes;})));
+  cl.push(['Ticket médio MPE (R$ mil)'].concat(M.ano.map(function(o){return o.tkMPE;})));
+  cl.push(['Margem por cliente (R$/ano)'].concat(M.ano.map(function(o){return o.margemPorCliente;})));
+  cl.push(['Payback de CAC (dias)'].concat(M.ano.map(function(o){return isFinite(o.paybackDias)?o.paybackDias:'';})));
+  cl.push([]);
+  cl.push(['CAC (R$)', S.cac]);
+  cl.push(['Churn ao ano', S.churn]);
+  cl.push(['LTV nominal 5 anos (R$)', M.ltvNominal]);
+  cl.push(['LTV descontado (R$)', M.ltvDescontado]);
+  cl.push(['LTV/CAC', M.ltvSobreCac]);
+  cl.push(['LTV descontado/CAC', M.ltvDescSobreCac]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cl), 'Clientes');
+
+  var rt = [['Indicador','Valor'],
+    ['EBITDA Ano 5 (R$ mi)', M.ebitdaAno5],
+    ['Múltiplo de saída', S.multiploSaida],
+    ['Valuation (R$ mi)', M.valuation],
+    ['Participação vendida', S.pctVendido],
+    ['Valor da participação (R$ mi)', M.participacao],
+    ['Investimento total (R$ mi)', INVESTIMENTO_TOTAL],
+    ['Parcela primária (R$ mi)', PARCELA_PRIMARIA],
+    ['Parcela secundária (R$ mi)', INVESTIMENTO_TOTAL-PARCELA_PRIMARIA],
+    ['MOIC total', M.moicTotal],
+    ['MOIC primário', M.moicPrimario],
+    ['TIR total ao ano', M.tirTotal],
+    ['TIR primário ao ano', M.tirPrimario],
+    ['Break-even', M.breakEven ? 'Ano '+M.breakEven : 'não ocorre em 5 anos']];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rt), 'Retorno');
+
+  var sn = [['Múltiplo','Valuation (R$ mi)','Participação (R$ mi)','MOIC total','MOIC primário','TIR ao ano']];
+  M.sensibilidade.forEach(function(l){ sn.push([l.multiplo,l.valuation,l.participacao,l.moicTotal,l.moicPrimario,l.tir]); });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sn), 'Sensibilidade');
+
+  XLSX.writeFile(wb, 'BROSBNK_simulador_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+
+/* ---------- Exportação: PDF ---------- */
+
+function exportarPdf(){
+  if(typeof window.jspdf === 'undefined'){ alert('A biblioteca de PDF não carregou. Verifique a conexão com a internet e recarregue a página.'); return; }
+  var jsPDF = window.jspdf.jsPDF;
+  var doc = new jsPDF({unit:'pt', format:'a4'});
+  var L = 40, y = 46, W = doc.internal.pageSize.getWidth();
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.setTextColor(12,78,84);
+  doc.text('BROSBNK', L, y);
+  doc.setFont('helvetica','normal'); doc.setFontSize(10.5); doc.setTextColor(60,60,60);
+  doc.text('Simulador do Plano de Negócios — Operação Brasil', L+86, y);
+  doc.setFontSize(8.5); doc.setTextColor(120,125,125);
+  doc.text(dataHoraBR(), W-L, y, {align:'right'});
+  y += 12;
+  doc.setDrawColor(216,220,220); doc.line(L, y, W-L, y); y += 18;
+
+  var kpis = [
+    ['TPV Ano 5', fmtBi(M.a5.tpvTotal)],
+    ['Receita bruta Ano 5', fmtMi(M.a5.receitaBruta)],
+    ['EBITDA Ano 5', fmtMi(M.a5.ebitda)],
+    ['Margem EBITDA', fmtPct(M.a5.margemEbitda,1)],
+    ['MOIC (R$ 17 mi)', fmtX(M.moicTotal)],
+    ['TIR ao ano', fmtPct(M.tirTotal,1)]
+  ];
+  var cw = (W-2*L)/3;
+  kpis.forEach(function(k,i){
+    var cx = L + cw*(i%3), cy = y + Math.floor(i/3)*44;
+    doc.setFontSize(7.5); doc.setTextColor(120,125,125); doc.text(k[0].toUpperCase(), cx, cy);
+    doc.setFontSize(14); doc.setTextColor(12,78,84); doc.setFont('helvetica','bold');
+    doc.text(k[1], cx, cy+16); doc.setFont('helvetica','normal');
+  });
+  y += 96;
+
+  var corpo = [];
+  function ln(rot, chave, dec){ return [rot].concat(M.ano.map(function(o){ return nf(o[chave], dec===undefined?2:dec); })).concat([nf(M.acum[chave], dec===undefined?2:dec)]); }
+  corpo.push(ln('TPV total (R$ bi)','tpvTotal'));
+  corpo.push(ln('Receita bruta (R$ mi)','receitaBruta'));
+  corpo.push(ln('Custo de execução (R$ mi)','custoExecucao'));
+  corpo.push(ln('Provisão tributária (R$ mi)','tributos'));
+  corpo.push(ln('Margem de contribuição (R$ mi)','margemContrib'));
+  corpo.push(ln('OPEX (R$ mi)','opex',3));
+  corpo.push(ln('GTM (R$ mi)','gtm',3));
+  if(S.licencaOn) corpo.push(ln('Ganho de licença (R$ mi)','ganhoLicenca',3));
+  corpo.push(ln('EBITDA (R$ mi)','ebitda'));
+  corpo.push(['Margem EBITDA'].concat(M.ano.map(function(o){ return fmtPct(o.margemEbitda,1); })).concat([fmtPct(M.acum.margemEbitda,1)]));
+
+  doc.autoTable({
+    startY:y, head:[['Linha','Ano 1','Ano 2','Ano 3','Ano 4','Ano 5','Acum.']], body:corpo,
+    theme:'grid', margin:{left:L,right:L},
+    styles:{fontSize:7.6, cellPadding:3, textColor:[40,37,29], lineColor:[216,220,220]},
+    headStyles:{fillColor:[12,78,84], textColor:[255,255,255], fontSize:7.6},
+    columnStyles:{0:{halign:'left',cellWidth:132},1:{halign:'right'},2:{halign:'right'},3:{halign:'right'},4:{halign:'right'},5:{halign:'right'},6:{halign:'right'}},
+    didParseCell:function(d){ if(d.row.index>=corpo.length-2 && d.section==='body'){ d.cell.styles.fontStyle='bold'; } }
+  });
+  y = doc.lastAutoTable.finalY + 16;
+
+  var penBody = [
+    ['COMEX micro e pequenas — por valor', fmtBi(M.a5.tpvComexMPE), fmtBi(MERCADO.samComexMpe.valor), fmtPct(M.pen.comexValor,2)],
+    ['COMEX micro e pequenas — por empresas', fmtInt(S.clientesMPE5), fmtInt(MERCADO.universoMpe.valor), fmtPct(M.pen.comexContagem,2)],
+    ['COMEX médias', fmtBi(M.a5.tpvComexMed), fmtBi(MERCADO.samComexMedias.valor,1), fmtPct(M.pen.medias,2)],
+    ['Remessas', fmtBi(M.a5.tpvRem), fmtBi(MERCADO.tamRemessas.valor,0), fmtPct(M.pen.remessas,2)]
+  ];
+  if(S.criptoOn) penBody.push(['Cripto', fmtBi(M.a5.tpvCripto), fmtBi(MERCADO.samCripto.valor,0), fmtPct(M.pen.cripto,2)]);
+  doc.autoTable({
+    startY:y, head:[['Penetração de mercado (Ano 5)','Projetado','Mercado atendível','Penetração']], body:penBody,
+    theme:'grid', margin:{left:L,right:L},
+    styles:{fontSize:7.6, cellPadding:3, lineColor:[216,220,220]},
+    headStyles:{fillColor:[32,128,141], textColor:[255,255,255], fontSize:7.6},
+    columnStyles:{0:{halign:'left'},1:{halign:'right'},2:{halign:'right'},3:{halign:'right'}}
+  });
+  y = doc.lastAutoTable.finalY + 16;
+
+  doc.autoTable({
+    startY:y, head:[['Retorno','Valor','Indicador','Valor']],
+    body:[
+      ['Valuation na saída', fmtMi(M.valuation), 'MOIC sobre R$ 17 mi', fmtX(M.moicTotal)],
+      ['Valor da participação', fmtMi(M.participacao), 'MOIC sobre R$ 12 mi', fmtX(M.moicPrimario)],
+      ['Participação vendida', fmtPct(S.pctVendido,0), 'TIR sobre R$ 17 mi', fmtPct(M.tirTotal,1)+' a.a.'],
+      ['Múltiplo de saída', fmtX(S.multiploSaida,0), 'TIR sobre R$ 12 mi', fmtPct(M.tirPrimario,1)+' a.a.'],
+      ['Break-even', M.breakEven?('Ano '+M.breakEven):'—', 'LTV / CAC', nf(M.ltvSobreCac,1)+'x']
+    ],
+    theme:'grid', margin:{left:L,right:L},
+    styles:{fontSize:7.6, cellPadding:3, lineColor:[216,220,220]},
+    headStyles:{fillColor:[32,128,141], textColor:[255,255,255], fontSize:7.6},
+    columnStyles:{0:{halign:'left'},1:{halign:'right'},2:{halign:'left'},3:{halign:'right'}}
+  });
+  y = doc.lastAutoTable.finalY + 14;
+
+  doc.setFontSize(7.4); doc.setTextColor(120,125,125);
+  doc.text('R$ 17 milhões, sendo R$ 12 milhões primários e R$ 5 milhões secundários.', L, y); y += 11;
+  var prem = premissasLista().filter(function(p){ return p[0]!=='Aviso'; })
+    .map(function(p){ return p[0]+': '+(typeof p[1]==='number' ? nf(p[1], Math.abs(p[1])<1 ? 4 : 2) : p[1]); }).join(' · ');
+  var linhasPrem = doc.splitTextToSize('Premissas: '+prem, W-2*L);
+  doc.text(linhasPrem, L, y); y += linhasPrem.length*8.6 + 6;
+  doc.setTextColor(12,78,84); doc.setFont('helvetica','bold');
+  doc.text(AVISO, L, y);
+  doc.setFont('helvetica','normal');
+
+  // Anexo — glossário
+  doc.addPage();
+  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(12,78,84);
+  doc.text('Anexo — Glossário', L, 46);
+  doc.autoTable({
+    startY:60,
+    head:[['Termo','Definição']],
+    body: GLOSSARIO.map(function(v){
+      return [v[0] + (v[1] ? '\n('+v[1]+')' : ''), preencherGlossario(v[2]).replace(/<[^>]+>/g,'')];
+    }),
+    theme:'grid', margin:{left:L,right:L},
+    styles:{fontSize:7.2, cellPadding:3.5, lineColor:[216,220,220], valign:'top'},
+    headStyles:{fillColor:[12,78,84], textColor:[255,255,255]},
+    columnStyles:{0:{cellWidth:104, fontStyle:'bold'},1:{halign:'left'}}
+  });
+  var yy = doc.lastAutoTable.finalY + 14;
+  if(yy > doc.internal.pageSize.getHeight()-40){ doc.addPage(); yy = 46; }
+  doc.setFontSize(7.8); doc.setTextColor(12,78,84); doc.setFont('helvetica','bold');
+  doc.text(AVISO, L, yy);
+
+  // Rodapé em todas as páginas
+  var total = doc.internal.getNumberOfPages();
+  for(var p=1;p<=total;p++){
+    doc.setPage(p);
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.8); doc.setTextColor(140,145,145);
+    doc.text(AVISO + '  ·  Gerado em ' + dataHoraBR(), L, doc.internal.pageSize.getHeight()-20);
+    doc.text(p+'/'+total, W-L, doc.internal.pageSize.getHeight()-20, {align:'right'});
+  }
+  doc.save('BROSBNK_simulador_'+new Date().toISOString().slice(0,10)+'.pdf');
+}
+
+/* ---------- Inicialização ---------- */
+
+function abrirGaveta(id){
+  document.getElementById(id).classList.add('aberta');
+  document.getElementById(id).setAttribute('aria-hidden','false');
+  document.getElementById('sobreposicao').classList.add('aberta');
+}
+function fecharGavetas(){
+  ['gavetaGlossario','gavetaControles'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el){ el.classList.remove('aberta'); el.setAttribute('aria-hidden','true'); }
+  });
+  document.getElementById('sobreposicao').classList.remove('aberta');
+  fecharModalSalvar();
+}
+
+(function init(){
+  // gaveta de controles para telas estreitas
+  var gav = document.createElement('aside');
+  gav.className = 'gaveta-controles';
+  gav.id = 'gavetaControles';
+  gav.setAttribute('aria-hidden','true');
+  document.body.appendChild(gav);
+
+  document.getElementById('modoApresentacao').onclick = function(){ S.modo='apresentacao'; render(); };
+  document.getElementById('modoAvancado').onclick     = function(){ S.modo='avancado';     render(); };
+  document.getElementById('btnGlossario').onclick     = function(){ abrirGaveta('gavetaGlossario'); };
+  document.getElementById('fecharGlossario').onclick  = fecharGavetas;
+  document.getElementById('sobreposicao').onclick     = fecharGavetas;
+  document.getElementById('btnControles').onclick     = function(){ abrirGaveta('gavetaControles'); };
+  document.getElementById('btnSalvar').onclick        = abrirModalSalvar;
+  document.getElementById('cancelarSalvar').onclick   = fecharModalSalvar;
+  document.getElementById('confirmarSalvar').onclick  = salvarCenario;
+  document.getElementById('btnXlsx').onclick          = exportarXlsx;
+  document.getElementById('btnPdf').onclick           = exportarPdf;
+  document.getElementById('nomeCenario').addEventListener('keydown', function(e){ if(e.key==='Enter') salvarCenario(); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape'){ fecharGavetas(); fecharTip(); } });
+
+  lerHash();
+  render();
+})();
+</script>
+</body>
+</html>
