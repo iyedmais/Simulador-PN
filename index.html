@@ -983,7 +983,7 @@ function renderControles(){
       if(gr.id==='saida'){
         h += '<div class="metrica" style="border-bottom:0;padding-bottom:0"><div class="metrica-rot">Investimento total '+htmlAjuda('aporte')+'</div>'+
              '<div class="metrica-val" data-testid="investimento-total">'+fmtMi(aporteTotal())+'</div>'+
-             '<div class="metrica-sub">Primário: '+fmtMi(aporteP())+' · secundário: '+fmtMi(aporteS())+'</div></div>';
+             '<div class="metrica-sub" data-testid="investimento-detalhe">Primário: '+fmtMi(aporteP())+' · secundário: '+fmtMi(aporteS())+'</div></div>';
         if(aporteTotal() <= 0){
           h += '<div class="aviso aviso-ambar" data-testid="aviso-aporte-zero">Aporte total igual a zero — MOIC e TIR não podem ser calculados.</div>';
         }
@@ -1689,6 +1689,16 @@ function atualizarLeve(c, el){
   renderKpis();
   renderPaineis();
   renderGlossario(document.getElementById('buscaGlossario').value);
+  // resumo do aporte vive no painel de controles: atualiza sem redesenhar tudo
+  if(c.k === 'aporteP' || c.k === 'aporteS'){
+    var elTot = document.querySelector('[data-testid="investimento-total"]');
+    var elDet = document.querySelector('[data-testid="investimento-detalhe"]');
+    if(elTot) elTot.textContent = fmtMi(aporteTotal());
+    if(elDet) elDet.textContent = 'Primário: ' + fmtMi(aporteP()) + ' · secundário: ' + fmtMi(aporteS());
+    var avZero = document.querySelector('[data-testid="aviso-aporte-zero"]');
+    if((aporteTotal() <= 0) !== !!avZero){ renderControles(); return; }
+  }
+
   // avisos e travas que dependem do estado
   var av = document.querySelector('[data-testid="aviso-ticket-remessa"]');
   var precisa = S.tkRem5 > S.tkMPE5;
