@@ -303,7 +303,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-7</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-9</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -379,7 +379,20 @@ var CORES = { comex:'#03518F', remessas:'#009743', cripto:'#F7C500', licenca:'#E
 
 /* ---------- 2. Estado ---------- */
 
+function universoMpeEfetivo(){
+  if(!S || !S.dedupOn) return MERCADO.universoMpe.valor;
+  return (isFinite(S.universoMpeUnico) && S.universoMpeUnico > 0) ? S.universoMpeUnico : MERCADO.universoMpe.valor;
+}
+function carteiraMpe(){
+  return MERCADO.samComexMpe.valor * 1e6 / universoMpeEfetivo();   // R$ mil por ano
+}
+
 function sincronizarDerivados(){
+  if(isFinite(S.capturaMpeIn)){
+    S.tkMPE5 = carteiraMpe() * S.capturaMpeIn;
+  } else if(isFinite(S.tkMPE5)){
+    S.capturaMpeIn = S.tkMPE5 / carteiraMpe();   // cenários e links antigos
+  }
   if(isFinite(S.carteiraMed) && isFinite(S.capturaMedIn)){
     S.tkMed5 = S.carteiraMed * S.capturaMedIn;
   } else if(isFinite(S.carteiraMed) && S.carteiraMed > 0 && isFinite(S.tkMed5)){
@@ -391,7 +404,8 @@ function estadoPadrao(){
   return {
     modo:'apresentacao',
     // COMEX
-    clientesMPE5:4000, tkMPE5:650, clientesMed5:600, tkMed5:1050, takeComex:0.0145,
+    clientesMPE5:4000, tkMPE5:650, dedupOn:true, universoMpeUnico:33600, capturaMpeIn:0.5512,
+    clientesMed5:600, tkMed5:1050, takeComex:0.0145,
     carteiraMed:4200, capturaMedIn:0.25, takeMed:0.0120,
     // Remessas
     clientesRem5:4000, tkRem5:419, takeRem:0.0145,
@@ -847,6 +861,18 @@ var TIPS = {
     'O investidor desembolsa o total e recebe '+fmtPct(S.pctVendido,0)+' da empresa. As duas parcelas compram participação pelo mesmo preço por ação, então o retorno por real é igual nas duas.<br><br>'+
     'MOIC e TIR usam sempre o <b>total</b>. A eficiência de capital usa apenas o <b>primário</b>.'; },
 
+  universoUnico: function(){ return '<b>Empresas únicas no universo</b><br><br>'+
+    'O MDIC publica <b>11.822 exportadoras</b> e <b>cerca de 30.200 importadoras</b> de menor porte. A soma, '+fmtInt(MERCADO.universoMpe.valor)+', tem <b>dupla contagem</b>: a empresa que importa e exporta aparece nas duas listas. O MDIC não publica a interseção.<br><br>'+
+    'Este campo é a estimativa de empresas <b>únicas</b>. Ele define a carteira média por empresa — e só isso.'+
+    '<span class="tip-form">'+fmtBi(MERCADO.samComexMpe.valor)+' ÷ '+fmtInt(universoMpeEfetivo())+' = '+fmtMil(carteiraMpe())+' por empresa/ano</span>'+
+    'A penetração por número de empresas continua sendo calculada sobre as '+fmtInt(MERCADO.universoMpe.valor)+' brutas — o denominador maior, que produz o percentual menor e é o mais transparente de apresentar.<br><br>'+
+    'Deduplicar corta nos dois sentidos: melhora a carteira por empresa e piora a penetração real. Por isso as duas bases aparecem lado a lado.'; },
+
+  carteiraMpe: function(){ return '<b>Captura da carteira — MPE</b><br><br>'+
+    'Que fatia do movimento anual de comércio exterior de cada empresa passa pela BROSBNK. A empresa não troca de banco: ela divide o fluxo, e você fica com uma parte.'+
+    '<span class="tip-form">'+fmtMil(carteiraMpe())+' × '+fmtPct(S.capturaMpeIn,0)+' = '+fmtMil(S.tkMPE5)+' por ano</span>'+
+    'A carteira vem do mercado; a captura é premissa sua. Como o ticket é o produto dos dois, ele nunca ultrapassa o que a empresa de fato movimenta.'; },
+
   carteiraMed: function(){ return '<b>Carteira COMEX da média empresa</b><br><br>'+
     'Quanto uma média empresa movimenta em comércio exterior por ano, no total — não o que passa pela BROSBNK.'+
     '<span class="tip-form">Carteira: '+fmtMil(S.carteiraMed)+' · ticket capturado: '+fmtMil(S.tkMed5)+'</span>'+
@@ -902,7 +928,8 @@ var TIPS = {
 var CONTROLES = [
   // grupo, chave, rótulo, min, max, passo, tipo, modo, tooltip
   {g:'comex', k:'clientesMPE5', rot:'Clientes MPE no Ano 5',            min:1000, max:12000, passo:50,  tipo:'int', modo:'ambos',    tip:'Quantas micro e pequenas empresas — empresas de menor porte, na classificação das estatísticas oficiais de comércio exterior — estarão ativas na plataforma no quinto ano. Os anos anteriores são derivados da curva de entrada.'},
-  {g:'comex', k:'tkMPE5',       rot:'Ticket médio MPE (R$ mil/ano)',    min:300,  max:1700,  passo:1,   tipo:'int', modo:'ambos',    tipRef:'ticket', nota:function(){ return notaTicketMPE(); }},
+  {g:'comex', k:'universoMpeUnico', rot:'Empresas únicas no universo',  min:25000, max:41900, passo:100, tipo:'int', modo:'avancado', tipRef:'universoUnico', quando:function(){ return S.dedupOn; }},
+  {g:'comex', k:'capturaMpeIn', rot:'Captura da carteira',              min:5,    max:100,   passo:1,   tipo:'pct', modo:'ambos',    tipRef:'carteiraMpe', nota:function(){ return notaTicketMPE(); }},
   {g:'comex', k:'takeComex',    rot:'Take rate cobrada',                min:0.80, max:2.00,  passo:0.01, tipo:'pct', modo:'ambos',   tipRef:'take'},
 
   {g:'comexmed', k:'clientesMed5', rot:'Clientes no Ano 5',             min:0,    max:5000,  passo:10,  tipo:'int', modo:'avancado', tip:'Quantas empresas de médio porte estarão ativas no quinto ano. O volume por cliente é muito maior que o de uma MPE, mas a captura da carteira tende a ser menor, porque a empresa maior tem mesa de câmbio e poder de negociação.'},
@@ -950,12 +977,16 @@ var GRUPOS = [
 
 /* Notas derivadas exibidas sob os sliders de ticket. */
 function notaTicketMPE(){
-  var carteira = M && M.tkUniverso ? M.tkUniverso : 0;
-  if(!carteira) return '';
+  var c = carteiraMpe();
+  var cBruta = MERCADO.samComexMpe.valor * 1e6 / MERCADO.universoMpe.valor;
   return 'Ticket que passa pela plataforma: <b>' + fmtMil(S.tkMPE5) + ' por ano</b> — ' +
-         fmtPct(S.tkMPE5/carteira, 0) + ' da carteira média de ' + fmtMil(carteira) +
-         '. <span style="opacity:.75">A carteira é derivada do MDIC: ' + fmtBi(MERCADO.samComexMpe.valor) +
-         ' ÷ ' + fmtInt(MERCADO.universoMpe.valor) + ' empresas.</span>';
+         fmtPct(S.capturaMpeIn, 0) + ' da carteira de ' + fmtMil(c) + '.' +
+         '<br><span style="opacity:.75">Carteira derivada do MDIC: ' + fmtBi(MERCADO.samComexMpe.valor) +
+         ' ÷ ' + fmtInt(universoMpeEfetivo()) + ' empresas' +
+         (universoMpeEfetivo() < MERCADO.universoMpe.valor
+            ? ' únicas. Sobre as ' + fmtInt(MERCADO.universoMpe.valor) + ' brutas seria ' + fmtMil(cBruta) +
+              ', e a captura ' + fmtPct(S.tkMPE5/cBruta, 0) + '.'
+            : ' — soma bruta, sem deduplicação.') + '</span>';
 }
 function notaTicketRem(){
   var pen = M && M.pen ? M.pen.remessas : 0;
@@ -979,9 +1010,13 @@ function aplicarSlider(c, x){
   if(c.k === 'capturaMedIn' || c.k === 'carteiraMed'){
     S.tkMed5 = S.carteiraMed * S.capturaMedIn;
   }
+  if(c.k === 'capturaMpeIn' || c.k === 'universoMpeUnico'){
+    S.tkMPE5 = carteiraMpe() * S.capturaMpeIn;
+  }
 }
 
 function visivel(c){
+  if(typeof c.quando === 'function' && !c.quando()) return false;
   if(c.modo==='ambos') return true;
   if(c.modo==='avancado') return S.modo==='avancado';
   if(c.modo==='apresentacao') return S.modo==='apresentacao';
@@ -1036,6 +1071,13 @@ function renderControles(){
     }
     if(ligado){
       lista.forEach(function(c){ h += htmlControle(c, CONTROLES.indexOf(c)); });
+      if(gr.id==='comex' && S.modo==='avancado'){
+        h += '<label class="chave" style="margin-top:14px"><input type="checkbox" data-chave="dedupOn" data-testid="chave-dedup"'+(S.dedupOn?' checked':'')+'>'+
+             '<span class="trilho"></span><span class="chave-rot">Deduplicação do universo '+htmlAjuda('universoUnico')+'</span></label>';
+        h += S.dedupOn
+          ? '<div class="aviso aviso-info" data-testid="aviso-com-dedup">Carteira por empresa calculada sobre '+fmtInt(S.universoMpeUnico)+' empresas únicas. A penetração por número de empresas continua sobre as '+fmtInt(MERCADO.universoMpe.valor)+' brutas.</div>'
+          : '<div class="aviso aviso-info" data-testid="aviso-sem-dedup">Sem deduplicação: a carteira usa a soma bruta de '+fmtInt(MERCADO.universoMpe.valor)+' exportadoras e importadoras. Leitura mais conservadora da carteira e mais agressiva da captura.</div>';
+      }
       if(gr.id==='comexmed' && S.tkMed5 > S.carteiraMed){
         h += '<div class="aviso aviso-vermelho" data-testid="aviso-captura-media">O ticket capturado é maior que a carteira declarada da média empresa — captura acima de 100%.</div>';
       }
@@ -1765,6 +1807,7 @@ function assinaturaAvisos(){
     S.tkMed5 > S.carteiraMed,
     S.carteiraMed <= (M && M.tkUniverso ? M.tkUniverso : 0),
     S.takeMed > S.takeComex,
+    !!S.dedupOn,
     aporteTotal() <= 0
   ].map(function(b){ return b ? '1' : '0'; }).join('');
 }
@@ -1789,8 +1832,8 @@ function atualizarLeve(c, el){
   }
 
   // notas derivadas dos tickets
-  if(c.k === 'tkMPE5' || c.k === 'clientesMPE5'){
-    var nMpe = document.querySelector('[data-testid="nota-tkMPE5"]');
+  if(c.k === 'capturaMpeIn' || c.k === 'universoMpeUnico' || c.k === 'clientesMPE5'){
+    var nMpe = document.querySelector('[data-testid="nota-capturaMpeIn"]');
     if(nMpe) nMpe.innerHTML = notaTicketMPE();
   }
   if(c.k === 'tkRem5' || c.k === 'clientesRem5'){
@@ -1936,6 +1979,10 @@ function premissasLista(){
     ['Ticket médio MPE (R$ mil/ano)', S.tkMPE5],
     ['Clientes médios no Ano 5', S.clientesMed5],
     ['Ticket médio das médias (R$ mil/ano)', S.tkMed5],
+    ['Deduplicação do universo de MPE', S.dedupOn ? 'Sim' : 'Não'],
+    ['Empresas consideradas no universo de MPE', universoMpeEfetivo()],
+    ['Carteira COMEX da MPE (R$ mil/ano)', carteiraMpe()],
+    ['Captura da carteira da MPE', S.capturaMpeIn],
     ['Take rate COMEX — MPE', S.takeComex],
     ['Carteira COMEX da média (R$ mil/ano)', S.carteiraMed],
     ['Ticket capturado da média (R$ mil/ano)', S.tkMed5],
