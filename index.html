@@ -303,7 +303,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-5</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-6</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -379,12 +379,20 @@ var CORES = { comex:'#03518F', remessas:'#009743', cripto:'#F7C500', licenca:'#E
 
 /* ---------- 2. Estado ---------- */
 
+function sincronizarDerivados(){
+  if(isFinite(S.carteiraMed) && isFinite(S.capturaMedIn)){
+    S.tkMed5 = S.carteiraMed * S.capturaMedIn;
+  } else if(isFinite(S.carteiraMed) && S.carteiraMed > 0 && isFinite(S.tkMed5)){
+    S.capturaMedIn = S.tkMed5 / S.carteiraMed;   // cenários e links antigos
+  }
+}
+
 function estadoPadrao(){
   return {
     modo:'apresentacao',
     // COMEX
     clientesMPE5:4000, tkMPE5:650, clientesMed5:600, tkMed5:1050, takeComex:0.0145,
-    carteiraMed:4200, takeMed:0.0120,
+    carteiraMed:4200, capturaMedIn:0.25, takeMed:0.0120,
     // Remessas
     clientesRem5:4000, tkRem5:419, takeRem:0.0145,
     // Cripto
@@ -548,6 +556,7 @@ function calcular(){
   // médias: carteira declarada, captura derivada, universo implícito pelo SAM
   m.carteiraMed    = S.carteiraMed;
   m.capturaMed     = S.carteiraMed > 0 ? S.tkMed5 / S.carteiraMed : 0;
+  m.tkMedCapturado = S.tkMed5;
   m.universoMed    = S.carteiraMed > 0 ? MERCADO.samComexMedias.valor * 1e6 / S.carteiraMed : 0;
   m.penMedContagem = m.universoMed > 0 ? S.clientesMed5 / m.universoMed : 0;
   m.gapPenetracao= m.pen.comexContagem - m.pen.comexValor;
@@ -894,11 +903,12 @@ var CONTROLES = [
   // grupo, chave, rótulo, min, max, passo, tipo, modo, tooltip
   {g:'comex', k:'clientesMPE5', rot:'Clientes MPE no Ano 5',            min:1000, max:12000, passo:50,  tipo:'int', modo:'ambos',    tip:'Quantas micro e pequenas empresas — empresas de menor porte, na classificação das estatísticas oficiais de comércio exterior — estarão ativas na plataforma no quinto ano. Os anos anteriores são derivados da curva de entrada.'},
   {g:'comex', k:'tkMPE5',       rot:'Ticket médio MPE (R$ mil/ano)',    min:300,  max:1700,  passo:1,   tipo:'int', modo:'ambos',    tipRef:'ticket'},
-  {g:'comex', k:'clientesMed5', rot:'Clientes médios no Ano 5',         min:0,    max:5000,  passo:10,  tipo:'int', modo:'avancado', tip:'Quantas empresas de médio porte estarão ativas no quinto ano. O volume por cliente é muito maior que o de uma MPE, mas a captura da carteira tende a ser menor, porque a empresa maior tem mesa de câmbio e poder de negociação. O universo de referência é o SAM de médias dividido pela carteira declarada.'},
-  {g:'comex', k:'tkMed5',       rot:'Ticket médio das médias (R$ mil/ano)', min:200,  max:10000, passo:50, tipo:'int', modo:'avancado', tipRef:'ticket'},
-  {g:'comex', k:'takeComex',    rot:'Take rate COMEX — MPE',            min:0.80, max:2.00,  passo:0.01, tipo:'pct', modo:'ambos',   tipRef:'take'},
-  {g:'comex', k:'carteiraMed',  rot:'Carteira COMEX da média (R$ mil/ano)', min:500,  max:12000, passo:100, tipo:'int', modo:'avancado', tipRef:'carteiraMed'},
-  {g:'comex', k:'takeMed',      rot:'Take rate COMEX — médias',         min:0.50, max:2.00,  passo:0.01, tipo:'pct', modo:'avancado', tipRef:'takeMed'},
+  {g:'comex', k:'takeComex',    rot:'Take rate cobrada',                min:0.80, max:2.00,  passo:0.01, tipo:'pct', modo:'ambos',   tipRef:'take'},
+
+  {g:'comexmed', k:'clientesMed5', rot:'Clientes no Ano 5',             min:0,    max:5000,  passo:10,  tipo:'int', modo:'avancado', tip:'Quantas empresas de médio porte estarão ativas no quinto ano. O volume por cliente é muito maior que o de uma MPE, mas a captura da carteira tende a ser menor, porque a empresa maior tem mesa de câmbio e poder de negociação.'},
+  {g:'comexmed', k:'carteiraMed',  rot:'Carteira COMEX da empresa (R$ mil/ano)', min:500, max:12000, passo:100, tipo:'int', modo:'avancado', tipRef:'carteiraMed'},
+  {g:'comexmed', k:'capturaMedIn', rot:'Captura da carteira',           min:5,    max:100,   passo:1,   tipo:'pct', modo:'avancado', tipRef:'carteiraMed', nota:function(){ return 'Ticket que passa pela plataforma: <b>'+fmtMil(S.carteiraMed*S.capturaMedIn)+' por ano</b> — '+fmtPct(S.capturaMedIn,0)+' de '+fmtMil(S.carteiraMed)+'.'; }},
+  {g:'comexmed', k:'takeMed',      rot:'Take rate cobrada',             min:0.50, max:2.00,  passo:0.01, tipo:'pct', modo:'avancado', tipRef:'takeMed'},
 
   {g:'rem',   k:'clientesRem5', rot:'Clientes de remessas no Ano 5',    min:0,    max:10000, passo:50,  tipo:'int', modo:'ambos',    tip:'Quantos clientes usarão a plataforma para enviar e receber dinheiro do exterior fora das operações de comércio exterior.'},
   {g:'rem',   k:'tkRem5',       rot:'Ticket médio de remessa (R$ mil/ano)', min:50, max:1000, passo:1,  tipo:'int', modo:'ambos',    tipRef:'ticket'},
@@ -928,8 +938,9 @@ var CONTROLES = [
 ];
 
 var GRUPOS = [
-  {id:'comex',  titulo:'COMEX',            cor:CORES.comex,    fixo:true},
-  {id:'rem',    titulo:'Remessas',         cor:CORES.remessas, fixo:true},
+  {id:'comex',    titulo:'COMEX — micro e pequenas', cor:CORES.comex,   fixo:true},
+  {id:'comexmed', titulo:'COMEX — médias empresas',  cor:'#4E8CC4',     fixo:true},
+  {id:'rem',      titulo:'Remessas',                 cor:CORES.remessas, fixo:true},
   {id:'cripto', titulo:'Cripto',           cor:CORES.cripto,   chave:'criptoOn'},
   {id:'lic',    titulo:'Licença própria',  cor:CORES.licenca,  chave:'licencaOn'},
   {id:'custo',  titulo:'Custos e estrutura'},
@@ -946,7 +957,13 @@ function valorExibido(c){
   return nf(v,0);
 }
 function valorSlider(c){ return c.tipo==='pct' ? S[c.k]*100 : S[c.k]; }
-function aplicarSlider(c, x){ S[c.k] = c.tipo==='pct' ? x/100 : x; }
+function aplicarSlider(c, x){
+  S[c.k] = c.tipo==='pct' ? x/100 : x;
+  // o ticket das médias é derivado: carteira × captura
+  if(c.k === 'capturaMedIn' || c.k === 'carteiraMed'){
+    S.tkMed5 = S.carteiraMed * S.capturaMedIn;
+  }
+}
 
 function visivel(c){
   if(c.modo==='ambos') return true;
@@ -966,7 +983,7 @@ function htmlControle(c, idx){
     '<input type="range" min="'+c.min+'" max="'+c.max+'" step="'+c.passo+'" value="'+valorSlider(c)+'" data-ctl="'+c.k+'" data-testid="slider-'+c.k+'">'+
     '<div class="ctl-lim"><span>'+(c.tipo==='pct'?nf(c.min,2)+'%':nf(c.min, c.tipo==='dec'?2:0)+(c.tipo==='mult'||c.tipo==='mult0'?'x':''))+'</span>'+
     '<span>'+(c.tipo==='pct'?nf(c.max,2)+'%':nf(c.max, c.tipo==='dec'?2:0)+(c.tipo==='mult'||c.tipo==='mult0'?'x':''))+'</span></div>'+
-    (c.nota ? '<div class="aviso aviso-info">'+c.nota+'</div>' : '')+
+    (c.nota ? '<div class="aviso aviso-info" data-testid="nota-'+c.k+'">'+(typeof c.nota==='function'?c.nota():c.nota)+'</div>' : '')+
   '</div>';
 }
 
@@ -1003,13 +1020,13 @@ function renderControles(){
     }
     if(ligado){
       lista.forEach(function(c){ h += htmlControle(c, CONTROLES.indexOf(c)); });
-      if(gr.id==='comex' && S.tkMed5 > S.carteiraMed){
+      if(gr.id==='comexmed' && S.tkMed5 > S.carteiraMed){
         h += '<div class="aviso aviso-vermelho" data-testid="aviso-captura-media">O ticket capturado é maior que a carteira declarada da média empresa — captura acima de 100%.</div>';
       }
-      if(gr.id==='comex' && S.carteiraMed <= M.tkUniverso){
+      if(gr.id==='comexmed' && S.carteiraMed <= M.tkUniverso){
         h += '<div class="aviso aviso-ambar" data-testid="aviso-carteira-media">A carteira da média está igual ou menor que a carteira média de uma MPE ('+fmtMil(M.tkUniverso)+'). A segmentação deixa de se sustentar.</div>';
       }
-      if(gr.id==='comex' && S.takeMed > S.takeComex){
+      if(gr.id==='comexmed' && S.takeMed > S.takeComex){
         h += '<div class="aviso aviso-ambar" data-testid="aviso-take-media">Take rate das médias maior que a das MPEs — empresa maior costuma negociar preço melhor, não pior.</div>';
       }
       if(gr.id==='rem' && S.tkRem5 > S.tkMPE5){
@@ -1645,6 +1662,7 @@ function renderGlossario(filtro){
 }
 
 function render(){
+  sincronizarDerivados();
   M = calcular();
   document.getElementById('modoApresentacao').setAttribute('aria-pressed', S.modo==='apresentacao');
   document.getElementById('modoAvancado').setAttribute('aria-pressed', S.modo==='avancado');
@@ -1752,6 +1770,12 @@ function atualizarLeve(c, el){
     if(elDet) elDet.textContent = 'Primário: ' + fmtMi(aporteP()) + ' · secundário: ' + fmtMi(aporteS());
     var avZero = document.querySelector('[data-testid="aviso-aporte-zero"]');
     if((aporteTotal() <= 0) !== !!avZero){ renderControles(); return; }
+  }
+
+  // nota derivada da captura das médias
+  if(c.k === 'capturaMedIn' || c.k === 'carteiraMed'){
+    var nt = document.querySelector('[data-testid="nota-capturaMedIn"]');
+    if(nt) nt.innerHTML = 'Ticket que passa pela plataforma: <b>'+fmtMil(S.carteiraMed*S.capturaMedIn)+' por ano</b> — '+fmtPct(S.capturaMedIn,0)+' de '+fmtMil(S.carteiraMed)+'.';
   }
 
   // avisos de coerência vivem no painel de controles: só redesenha se algum mudar
@@ -1888,6 +1912,7 @@ function premissasLista(){
     ['Ticket médio das médias (R$ mil/ano)', S.tkMed5],
     ['Take rate COMEX — MPE', S.takeComex],
     ['Carteira COMEX da média (R$ mil/ano)', S.carteiraMed],
+    ['Ticket capturado da média (R$ mil/ano)', S.tkMed5],
     ['Captura da carteira da média', M.capturaMed],
     ['Take rate COMEX — médias', S.takeMed],
     ['Clientes de remessas no Ano 5', S.clientesRem5],
