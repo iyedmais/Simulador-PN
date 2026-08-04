@@ -319,6 +319,8 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
 <div class="modal" id="modalSalvar">
   <h3>Salvar cenário</h3>
   <input class="busca" id="nomeCenario" placeholder="Nome do cenário" data-testid="input-nome-cenario">
+  <label class="chave" style="margin:12px 0 6px"><input type="checkbox" id="cenarioPadrao" data-testid="chk-cenario-padrao"><span class="trilho"></span><span class="chave-rot">Usar como cenário de referência</span></label>
+  <div style="font-size:11.5px;color:#8A9392;line-height:1.5;margin-bottom:14px">A referência é a régua da comparação no Resumo. Marcar não altera o cenário que está carregado na tela.</div>
   <div style="display:flex; gap:8px; justify-content:flex-end;">
     <button class="btn" id="cancelarSalvar">Cancelar</button>
     <button class="btn btn-primario" id="confirmarSalvar" data-testid="btn-confirmar-salvar">Salvar</button>
@@ -340,24 +342,24 @@ var F_CLI_PADRAO = [0.100, 0.250, 0.450, 0.700, 1.000];
 var F_TK_PADRAO  = [0.666, 0.811, 0.958, 1.007, 1.000];
 
 var OPEX_CATEGORIAS = [
-  { id:'tec',   nome:'Tecnologia e infraestrutura',       v:[330.0,396.0,508.2,599.6,670.6] },
-  { id:'eng',   nome:'Equipe de produto e engenharia',    v:[375.0,450.0,577.5,681.4,762.0] },
-  { id:'comp',  nome:'Compliance e prevenção à lavagem',  v:[195.0,234.0,300.3,354.3,396.2] },
-  { id:'jur',   nome:'Jurídico e regulatório',            v:[105.0,126.0,161.7,190.8,213.4] },
-  { id:'atend', nome:'Atendimento e operações',           v:[165.0,198.0,254.1,299.8,335.3] },
-  { id:'fin',   nome:'Financeiro e contabilidade',        v:[ 90.0,108.0,138.6,163.5,182.9] },
-  { id:'adm',   nome:'Administrativo e escritório',       v:[ 75.0, 90.0,115.5,136.3,152.4] },
-  { id:'lic',   nome:'Licenças e taxas regulatórias',     v:[ 60.0, 72.0, 92.4,109.0,121.9] },
-  { id:'aud',   nome:'Auditoria e certificações',         v:[ 45.0, 54.0, 69.3, 81.8, 91.4] },
-  { id:'seg',   nome:'Segurança da informação',           v:[ 45.0, 54.0, 69.3, 81.8, 91.4] },
-  { id:'out',   nome:'Outros',                            v:[ 15.0, 18.0, 23.1, 27.2, 30.5] }
+  { id:'tec',    nome:'Tecnologia e infraestrutura',       v:[ 792.0, 880.0, 968.0,1056.0,1144.1] },
+  { id:'eng',    nome:'Equipe de produto e engenharia',    v:[ 900.0,1000.0,1100.0,1200.0,1300.0] },
+  { id:'comp',   nome:'Compliance e prevenção à lavagem',  v:[ 468.0, 520.0, 572.0, 624.0, 675.9] },
+  { id:'jur',    nome:'Jurídico e regulatório',            v:[ 252.0, 280.0, 308.0, 336.0, 364.1] },
+  { id:'atend',  nome:'Atendimento e operações',           v:[ 396.0, 440.0, 484.0, 528.0, 572.0] },
+  { id:'fin',    nome:'Financeiro e contabilidade',        v:[ 216.0, 240.0, 264.0, 287.9, 312.0] },
+  { id:'adm',    nome:'Administrativo e escritório',       v:[ 180.0, 200.0, 220.0, 240.0, 260.0] },
+  { id:'lic',    nome:'Licenças e taxas regulatórias',     v:[ 144.0, 160.0, 176.0, 192.0, 208.0] },
+  { id:'aud',    nome:'Auditoria e certificações',         v:[ 108.0, 120.0, 132.0, 144.1, 155.9] },
+  { id:'seg',    nome:'Segurança da informação',           v:[ 108.0, 120.0, 132.0, 144.1, 155.9] },
+  { id:'out',    nome:'Outros',                            v:[  36.0,  40.0,  44.0,  47.9,  52.1] }
 ];
 
 var MERCADO = {
   tamComex:        { valor:3300,   fonte:'MDIC/SECEX 2025 (US$ 628,49 bi × 5,25)' },
   samComexMpe:     { valor:39.62,  fonte:'MDIC/SECEX 2025, soma dos 4 perfis fiscais (US$ 7.547,5 mi × 5,25)' },
   samComexMedias:  { valor:99.1,   fonte:'Funcex/RBCE 137' },
-  universoMpe:     { valor:41938,  fonte:'MDIC/SECEX 2025' },
+  universoMpe:     { valor:42022,  fonte:'MDIC/SECEX 2025 — 11.822 exportadoras + 30.200 importadoras; soma bruta sem deduplicação' },
   tamRemessas:     { valor:828,    fonte:'BCB, Balanço de Pagamentos 2025 — US$ 146,1 bi × 5,67, visão conservadora' },
   tamRemessasPjMin:{ valor:621,    fonte:'75–80% do total, estimativa por rubrica' },
   tamRemessasPjMax:{ valor:663,    fonte:'75–80% do total, estimativa por rubrica' },
@@ -377,16 +379,16 @@ function estadoPadrao(){
     // COMEX
     clientesMPE5:4000, tkMPE5:733, clientesMed5:50, tkMed5:4200, takeComex:0.0145,
     // Remessas
-    clientesRem5:3000, tkRem5:419, takeRem:0.0145,
+    clientesRem5:4000, tkRem5:419, takeRem:0.0145,
     // Cripto
     criptoOn:false, tpvCripto5:3.30, takeCripto:0.0045, custoLiqCripto:0.0010,
     // Licença própria
     licencaOn:false, ganhoCripto:0.0010, ganhoComex:0.0000,
     // Custos e estrutura
-    custoProvedores:0.0040, aliquota:0.080, multOpex:1.00, cac:524, cacRem:524,
+    custoProvedores:0.0045, aliquota:0.080, multOpex:1.00, cac:900, cacRem:900,
     opexCustom:null,
     // Retenção
-    churn:0.020,
+    churn:0.050,
     // Saída e rodada
     multiploSaida:10, pctVendido:0.20, taxaDesconto:0.15,
     // Curva
@@ -489,6 +491,32 @@ function calcular(){
   m.breakEven = null;
   for(i=0;i<5;i++){ if(a[i].ebitda > 0){ m.breakEven = i+1; break; } }
 
+  // 5.3b — break-even em meses (interpolação linear dentro do ano)
+  // O modelo é anual. Os meses são leitura auxiliar, não projeção mensal.
+  m.breakEvenMes    = null;   // EBITDA do ano passa a ser positivo
+  m.recuperacaoAno  = null;   // ano em que o EBITDA acumulado zera
+  m.recuperacaoMes  = null;   // mês estimado dessa virada
+  for(i=0;i<5;i++){
+    if(a[i].ebitda > 0){
+      if(i > 0 && a[i-1].ebitda < 0){
+        var antE = a[i-1].ebitda;
+        m.breakEvenMes = Math.max(i*12 + 1, Math.round(i*12 + ((-antE)/(a[i].ebitda - antE))*12));
+      }
+      break;
+    }
+  }
+  var acEb = 0, acAnt = 0;
+  for(i=0;i<5;i++){
+    acAnt = acEb; acEb += a[i].ebitda;
+    if(acEb > 0){
+      m.recuperacaoAno = i+1;
+      if(i > 0 && acAnt < 0){
+        m.recuperacaoMes = Math.max(i*12 + 1, Math.round(i*12 + ((-acAnt)/(acEb - acAnt))*12));
+      }
+      break;
+    }
+  }
+
   // acumulados
   var chaves = ['tpvComex','tpvRem','tpvCripto','tpvTotal','receitaComex','receitaRem','receitaCripto',
                 'receitaBruta','custoFiat','custoCripto','custoExecucao','tributos','margemContrib',
@@ -545,6 +573,79 @@ function calcular(){
 }
 
 var M = calcular();
+
+/* ---------- 4b. Cenario de referencia (regua da comparacao) ---------- */
+
+var REF_ROTULO = 'padrão do plano';
+var REF_ESTADO = estadoPadrao();
+var REFERENCIA = null;
+
+function calcularCom(estado){
+  var salvo = S, r;
+  S = estado;
+  try { r = calcular(); } finally { S = salvo; }
+  return r;
+}
+function definirReferencia(estado, rotulo){
+  REF_ESTADO = JSON.parse(JSON.stringify(estado));
+  REF_ROTULO = rotulo || 'cenário padrão';
+  REFERENCIA = calcularCom(REF_ESTADO);
+}
+definirReferencia(estadoPadrao(), 'padrão do plano');
+
+function cascataVerif(mm){
+  var t = 'TPV ' + fmtBi(mm.a5.tpvTotal) +
+          ' · receita ' + fmtMi(mm.a5.receitaBruta) +
+          ' − custo de execução ' + fmtMi(mm.a5.custoExecucao) +
+          ' − tributos ' + fmtMi(mm.a5.tributos) +
+          ' = margem de contribuição ' + fmtMi(mm.a5.margemContrib) +
+          ' − OPEX ' + fmtMi(mm.a5.opex,3) +
+          ' − GTM ' + fmtMi(mm.a5.gtm,3);
+  if(mm.a5.ganhoLicenca && mm.a5.ganhoLicenca > 0){
+    t += ' + ganho de licença ' + fmtMi(mm.a5.ganhoLicenca,3);
+  }
+  t += ' = <b>EBITDA ' + fmtMi(mm.a5.ebitda) + '</b>';
+  return t;
+}
+function premissasRef(){
+  var e = REF_ESTADO;
+  var t = 'COMEX ' + fmtInt(e.clientesMPE5) + ' × ' + fmtMil(e.tkMPE5) +
+          ' + ' + fmtInt(e.clientesMed5) + ' × ' + fmtMil(e.tkMed5) +
+          ' · remessas ' + fmtInt(e.clientesRem5) + ' × ' + fmtMil(e.tkRem5) +
+          ' · provedores ' + fmtPct(e.custoProvedores,2) +
+          ' · CAC ' + fmtRS(e.cac) +
+          ' · churn ' + fmtPct(e.churn,1);
+  if(e.criptoOn)  t += ' · cripto ligada';
+  if(e.licencaOn) t += ' · licença própria ligada';
+  return '<span style="color:#8A9392">' + t + '</span>';
+}
+function deltaVerif(){
+  if(!REFERENCIA) return '';
+  var d = M.a5.ebitda - REFERENCIA.a5.ebitda;
+  if(Math.abs(d) < 0.005){
+    return '<br><span style="color:#8A9392">Idêntico à referência.</span>';
+  }
+  return '<br><b style="color:' + (d>0?'#009743':'#E2231D') + '">' +
+         (d>0?'+':'−') + fmtMi(Math.abs(d)) +
+         ' de EBITDA no Ano 5 em relação à referência.</b>';
+}
+
+function aplicarEscopo(qual){
+  var e = estadoPadrao();
+  e.modo = S.modo;
+  if(qual === 'cripto'){
+    e.criptoOn = true;
+  } else if(qual === 'licenca'){
+    e.criptoOn = true; e.licencaOn = true;
+  } else if(qual === 'conservador'){
+    e.clientesMPE5 = 2000; e.tkMPE5 = 565;
+    e.clientesRem5 = 2000;
+    e.cac = 1500; e.cacRem = 1500;
+    e.churn = 0.10;
+  }
+  S = e;
+  render();
+}
 
 /* ---------- 5. Glossário (texto aprovado pelo usuário) ---------- */
 
@@ -625,7 +726,7 @@ var TIPS = {
 
   custoExec: function(){ return '<b>Custo de execução</b><br><br>O que a empresa paga aos parceiros para que a operação aconteça — o provedor de câmbio e as tarifas de liquidação, que é o momento em que o dinheiro efetivamente troca de mãos.'+
     '<span class="tip-form">Ano 5: '+fmtPct(S.custoProvedores,2)+' × '+fmtBi(M.a5.tpvComex+M.a5.tpvRem)+' (fiat)'+(S.criptoOn?' + '+fmtPct(S.custoLiqCripto,2)+' × '+fmtBi(M.a5.tpvCripto)+' (cripto)':'')+'</span>'+
-    'Ano 5: <b>'+fmtMi(M.a5.custoExecucao)+'</b><br><br>O custo com provedores tem teto contratual de 0,40% do volume.'; },
+    'Ano 5: <b>'+fmtMi(M.a5.custoExecucao)+'</b><br><br>O custo com provedores tem teto contratual de 0,40% do volume; somadas as tarifas de liquidação, o efetivo aplicado neste cenário é de '+fmtPct(S.custoProvedores,2)+'.'; },
 
   tributos: function(){ return '<b>Provisão tributária</b><br><br>Reserva para impostos sobre o faturamento, separada antes de qualquer outra conta.'+
     '<span class="tip-form">Ano 5: '+fmtPct(S.aliquota,1)+' × '+fmtMi(M.a5.receitaBruta)+'</span>'+
@@ -656,7 +757,9 @@ var TIPS = {
   breakEven: function(){
     var t = '<b>Break-even</b><br><br>O momento em que a operação passa a se sustentar sozinha, sem consumir o dinheiro do investimento.<span class="tip-form">';
     for(var i=0;i<Math.min(3,5);i++){ t += 'Ano '+(i+1)+': EBITDA de '+fmtMi(M.ano[i].ebitda)+'<br>'; }
-    t += '</span>' + (M.breakEven ? '<b>Acontece dentro do Ano '+M.breakEven+'.</b>' : '<b>Não ocorre dentro do horizonte de 5 anos.</b>');
+    t += '</span>' + (M.breakEven ? '<b>Resultado: '+fmtMes(M.breakEvenMes, M.breakEven).replace(/<[^>]+>/g,'')+'.</b>' : '<b>Não ocorre dentro do horizonte de 5 anos.</b>')+
+         '<br><b>Prejuízo acumulado recuperado: '+fmtMes(M.recuperacaoMes, M.recuperacaoAno).replace(/<[^>]+>/g,'')+'.</b>'+
+         '<br><br><span style="font-size:11px;color:#9AAAAB">Meses estimados por interpolação dentro do ano. O modelo é anual.</span>';
     return t; },
 
   cac: function(){ return '<b>CAC</b><br><span style="font-size:11px;color:#9AAAAB">Customer Acquisition Cost — custo de aquisição de cliente</span><br><br>'+
@@ -919,6 +1022,14 @@ function renderControles(){
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+/* Mês estimado -> "mês 16 (Ano 2)". Sem mês, cai no ano. */
+function fmtMes(mes, anoFallback){
+  if(mes === null || mes === undefined){
+    return anoFallback ? 'dentro do Ano ' + anoFallback : 'não ocorre em 5 anos';
+  }
+  return 'mês ' + mes + ' <span style="font-weight:400;color:#8A9392">· Ano ' + Math.ceil(mes/12) + '</span>';
+}
+
 function graficoBarras(dados, opcoes){
   opcoes = opcoes || {};
   var L=52, R=12, T=14, B=28, W=opcoes.w||520, H=opcoes.h||220;
@@ -1054,7 +1165,7 @@ function renderKpis(){
   var itens = [
     {rot:'TPV Ano 5',        val:fmtBi(M.a5.tpvTotal),            nota:'Acumulado: '+fmtBi(M.acum.tpvTotal),      tip:'tpv',          tid:'kpi-tpv'},
     {rot:'Receita bruta A5', val:fmtMi(M.a5.receitaBruta),        nota:'Acumulada: '+fmtMi(M.acum.receitaBruta),  tip:'receita',      tid:'kpi-receita'},
-    {rot:'EBITDA Ano 5',     val:fmtMi(M.a5.ebitda),              nota:M.breakEven?('Break-even dentro do Ano '+M.breakEven):'Sem break-even em 5 anos', tip:'ebitda', tid:'kpi-ebitda'},
+    {rot:'EBITDA Ano 5',     val:fmtMi(M.a5.ebitda),              nota:M.breakEven?('Break-even '+(M.breakEvenMes?('no mês '+M.breakEvenMes):('dentro do Ano '+M.breakEven))):'Sem break-even em 5 anos', tip:'ebitda', tid:'kpi-ebitda'},
     {rot:'Margem EBITDA A5', val:fmtPct(M.a5.margemEbitda,1),     nota:'Sobre a receita bruta',                   tip:'margemEbitda', tid:'kpi-margem'},
     {rot:'MOIC',             val:fmtX(M.moicTotal),               nota:'Sobre R$ 17 mi · primário '+fmtX(M.moicPrimario), tip:'moic', tid:'kpi-moic'},
     {rot:'TIR',              val:fmtPct(M.tirTotal,1)+' a.a.',    nota:'Primário: '+fmtPct(M.tirPrimario,1)+' a.a.', tip:'tir',      tid:'kpi-tir'}
@@ -1104,9 +1215,11 @@ function painelResumo(){
        }).join('')+'</div></div></div>';
   h += '</div>';
 
-  h += '<div class="cartao"><div class="cartao-titulo">Verificação do modelo</div>'+
-       '<div class="faixa-verificacao" data-testid="verificacao">Com os padrões do plano (COMEX 4.000 × R$ 733 mil + 50 × R$ 4.200 mil, remessas 3.000 × R$ 419 mil, custo 0,40%, cripto e licença desligadas), o Ano 5 deve dar aproximadamente: TPV R$ 4,40 bi · receita R$ 63,80 mi · provedores R$ 17,60 mi · tributos R$ 5,10 mi · margem de contribuição R$ 41,10 mi · OPEX R$ 3,048 mi · EBITDA em torno de R$ 36,2 mi.<br><br>'+
-       '<b>Cenário atual:</b> TPV '+fmtBi(M.a5.tpvTotal)+' · receita '+fmtMi(M.a5.receitaBruta)+' · provedores '+fmtMi(M.a5.custoFiat)+' · tributos '+fmtMi(M.a5.tributos)+' · margem de contribuição '+fmtMi(M.a5.margemContrib)+' · OPEX '+fmtMi(M.a5.opex,3)+' · EBITDA '+fmtMi(M.a5.ebitda)+'.</div></div>';
+  h += '<div class="cartao"><div class="cartao-titulo">Comparação com o cenário de referência</div>'+
+       '<div class="faixa-verificacao" data-testid="verificacao">'+
+       '<b>Referência — '+esc(REF_ROTULO)+'</b><br>'+premissasRef()+'<br>'+cascataVerif(REFERENCIA)+'<br><br>'+
+       '<b>Cenário atual</b><br>'+cascataVerif(M)+deltaVerif()+
+       '</div></div>';
   return h;
 }
 
@@ -1161,6 +1274,17 @@ function painelPL(){
 
   h += '</tbody></table></div>';
   h += '<div class="legenda"><span>Break-even '+htmlAjuda('breakEven')+': '+(M.breakEven?'dentro do Ano '+M.breakEven:'não ocorre em 5 anos')+'</span></div></div>';
+
+  h += '<div class="cartao" data-testid="cartao-breakeven"><div class="cartao-titulo">Break-even '+htmlAjuda('breakEven')+'</div>'+
+       '<div class="grade2">'+
+       '<div class="metrica"><div class="metrica-rot">Break-even de resultado</div>'+
+       '<div class="metrica-val" data-testid="be-resultado">'+fmtMes(M.breakEvenMes, M.breakEven)+'</div>'+
+       '<div class="metrica-sub" style="line-height:1.55">Mês em que o EBITDA do período passa a ser positivo — a operação deixa de consumir resultado para se sustentar.</div></div>'+
+       '<div class="metrica"><div class="metrica-rot">Prejuízo acumulado recuperado</div>'+
+       '<div class="metrica-val" data-testid="be-acumulado">'+fmtMes(M.recuperacaoMes, M.recuperacaoAno)+'</div>'+
+       '<div class="metrica-sub" style="line-height:1.55">Mês em que a soma dos EBITDAs zera. Não é caixa: exclui investimento em ativo, capital de giro e os tributos abaixo do EBITDA.</div></div>'+
+       '</div>'+
+       '<div style="font-size:11.5px;color:#8A9392;line-height:1.5;margin-top:4px">Os meses vêm de interpolação linear dentro do ano em que o sinal vira. O modelo é anual — servem para leitura, não como projeção mensal.</div></div>';
 
   h += '<div class="cartao"><div class="cartao-titulo">OPEX por categoria <span class="pill">R$ mil por ano</span></div>'+
        '<div class="tab-rolagem"><table class="dados" data-testid="tabela-opex"><thead><tr><th>Categoria</th><th>Ano 1</th><th>Ano 2</th><th>Ano 3</th><th>Ano 4</th><th>Ano 5</th><th>Acumulado</th></tr></thead><tbody>';
@@ -1363,6 +1487,14 @@ function painelCenarios(){
     '<button class="btn" data-acao="gerarLink" data-testid="btn-gerar-link">Gerar link editável</button>'+
     '<button class="btn" data-acao="gerarLinkTravado" data-testid="btn-gerar-link-travado">Gerar link travado</button>'+
     '<button class="btn" data-acao="restaurarPadrao" data-testid="btn-restaurar">Restaurar caso-base</button></div>'+
+    '<div class="cartao-titulo" style="margin-top:4px">Cenários por escopo</div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'+
+    '<button class="btn" data-acao="cenarioEscopo" data-escopo="base" data-testid="btn-escopo-base">Operação atual</button>'+
+    '<button class="btn" data-acao="cenarioEscopo" data-escopo="cripto" data-testid="btn-escopo-cripto">Com vertical cripto</button>'+
+    '<button class="btn" data-acao="cenarioEscopo" data-escopo="licenca" data-testid="btn-escopo-licenca">Com licença própria</button>'+
+    '<button class="btn" data-acao="cenarioEscopo" data-escopo="conservador" data-testid="btn-escopo-conservador">Piso conservador</button></div>'+
+    '<div style="font-size:12.5px;color:#6B7574;line-height:1.55;margin-bottom:14px">Os três primeiros são o mesmo plano com escopos diferentes de produto — não são cenários de risco. '+
+    'O <b>piso conservador</b> é o cenário de risco: menos clientes, ticket menor, CAC mais alto e churn de 10%.</div>'+
     '<div style="font-size:12.5px;color:#6B7574;line-height:1.55">O link codifica o cenário inteiro no próprio endereço da página — não há servidor nem banco de dados envolvido. '+
     'O <b>link editável</b> abre com os controles ativos: quem recebe pode explorar variações a partir do seu cenário. '+
     'O <b>link travado</b> abre somente leitura, com os controles bloqueados, mostrando exatamente os números que você calculou. '+
@@ -1382,7 +1514,8 @@ function painelCenarios(){
     ['Receita bruta A5', function(mm){ return fmtMi(mm.a5.receitaBruta); }],
     ['EBITDA Ano 5',     function(mm){ return fmtMi(mm.a5.ebitda); }],
     ['Margem EBITDA A5', function(mm){ return fmtPct(mm.a5.margemEbitda,1); }],
-    ['Break-even',       function(mm){ return mm.breakEven ? 'Ano '+mm.breakEven : '—'; }],
+    ['Break-even de resultado',  function(mm){ return mm.breakEvenMes ? 'mês '+mm.breakEvenMes : (mm.breakEven ? 'Ano '+mm.breakEven : '—'); }],
+    ['Acumulado recuperado',     function(mm){ return mm.recuperacaoMes ? 'mês '+mm.recuperacaoMes : (mm.recuperacaoAno ? 'Ano '+mm.recuperacaoAno : '—'); }],
     ['Valuation',        function(mm){ return fmtMi(mm.valuation); }],
     ['MOIC total',       function(mm){ return fmtX(mm.moicTotal); }],
     ['MOIC primário',    function(mm){ return fmtX(mm.moicPrimario); }],
@@ -1395,8 +1528,10 @@ function painelCenarios(){
   });
   h += '</tbody></table></div>';
   h += '<div style="margin-top:14px">'+CENARIOS.map(function(c,i){
-        return '<div class="cenario-linha"><b style="flex:1">'+esc(c.nome)+'</b>'+
+        var ehRef = (c.nome === REF_ROTULO);
+        return '<div class="cenario-linha"><b style="flex:1">'+(ehRef?'★ ':'')+esc(c.nome)+'</b>'+
                '<span style="font-size:11.5px;color:#8A9392">'+esc(c.criadoEm)+'</span>'+
+               '<button class="btn btn-pequeno" data-acao="tornarReferencia" data-idx="'+i+'"'+(ehRef?' disabled':'')+'>'+(ehRef?'É a referência':'Tornar referência')+'</button>'+
                '<button class="btn btn-pequeno" data-acao="carregarCenario" data-idx="'+i+'">Carregar</button>'+
                '<button class="btn btn-pequeno" data-acao="excluirCenario" data-idx="'+i+'">Excluir</button></div>';
       }).join('')+'</div></div>';
@@ -1550,7 +1685,11 @@ function executarAcao(acao, el){
   else if(acao==='copiarLink'){ copiarLink(); }
   else if(acao==='restaurarPadrao'){ var modo=S.modo; S = estadoPadrao(); S.modo=modo; render(); }
   else if(acao==='carregarCenario'){ var i=+el.getAttribute('data-idx'); S = JSON.parse(JSON.stringify(CENARIOS[i].estado)); render(); }
-  else if(acao==='excluirCenario'){ var j=+el.getAttribute('data-idx'); CENARIOS.splice(j,1); renderPaineis(); }
+  else if(acao==='cenarioEscopo'){ aplicarEscopo(el.getAttribute('data-escopo')); }
+  else if(acao==='tornarReferencia'){ var k=+el.getAttribute('data-idx'); definirReferencia(CENARIOS[k].estado, CENARIOS[k].nome); render(); }
+  else if(acao==='excluirCenario'){ var j=+el.getAttribute('data-idx');
+    if(CENARIOS[j] && CENARIOS[j].nome===REF_ROTULO){ definirReferencia(estadoPadrao(),'padrão do plano'); }
+    CENARIOS.splice(j,1); render(); }
 }
 
 /* ---------- Cenários ---------- */
@@ -1560,6 +1699,8 @@ function abrirModalSalvar(){
   document.getElementById('sobreposicao').classList.add('aberta');
   var inp = document.getElementById('nomeCenario');
   inp.value = 'Cenário ' + (CENARIOS.length+1);
+  var chk = document.getElementById('cenarioPadrao');
+  if(chk) chk.checked = false;
   inp.focus(); inp.select();
 }
 function fecharModalSalvar(){
@@ -1569,7 +1710,9 @@ function fecharModalSalvar(){
 function salvarCenario(){
   var nome = (document.getElementById('nomeCenario').value||'').trim() || ('Cenário '+(CENARIOS.length+1));
   var estado = JSON.parse(JSON.stringify(S));
+  var chk = document.getElementById('cenarioPadrao');
   CENARIOS.push({ nome:nome, estado:estado, m:calcular(), criadoEm:dataHoraBR() });
+  if(chk && chk.checked) definirReferencia(estado, nome);
   fecharModalSalvar();
   abaAtiva = 'cenarios';
   render();
@@ -1751,7 +1894,8 @@ function exportarXlsx(){
     ['MOIC primário', M.moicPrimario],
     ['TIR total ao ano', M.tirTotal],
     ['TIR primário ao ano', M.tirPrimario],
-    ['Break-even', M.breakEven ? 'Ano '+M.breakEven : 'não ocorre em 5 anos']];
+    ['Break-even de resultado', M.breakEvenMes ? ('mês '+M.breakEvenMes+' (Ano '+Math.ceil(M.breakEvenMes/12)+')') : (M.breakEven ? 'dentro do Ano '+M.breakEven : 'não ocorre em 5 anos')],
+    ['Prejuízo acumulado recuperado', M.recuperacaoMes ? ('mês '+M.recuperacaoMes+' (Ano '+Math.ceil(M.recuperacaoMes/12)+')') : (M.recuperacaoAno ? 'dentro do Ano '+M.recuperacaoAno : 'não ocorre em 5 anos')]];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rt), 'Retorno');
 
   var sn = [['Múltiplo','Valuation (R$ mi)','Participação (R$ mi)','MOIC total','MOIC primário','TIR ao ano']];
@@ -1841,7 +1985,8 @@ function exportarPdf(){
       ['Valor da participação', fmtMi(M.participacao), 'MOIC sobre R$ 12 mi', fmtX(M.moicPrimario)],
       ['Participação vendida', fmtPct(S.pctVendido,0), 'TIR sobre R$ 17 mi', fmtPct(M.tirTotal,1)+' a.a.'],
       ['Múltiplo de saída', fmtX(S.multiploSaida,0), 'TIR sobre R$ 12 mi', fmtPct(M.tirPrimario,1)+' a.a.'],
-      ['Break-even', M.breakEven?('Ano '+M.breakEven):'—', 'LTV / CAC', nf(M.ltvSobreCac,1)+'x']
+      ['Break-even', M.breakEvenMes?('mês '+M.breakEvenMes):(M.breakEven?('Ano '+M.breakEven):'—'), 'LTV / CAC', nf(M.ltvSobreCac,1)+'x'],
+      ['Acumulado recuperado', M.recuperacaoMes?('mês '+M.recuperacaoMes):(M.recuperacaoAno?('Ano '+M.recuperacaoAno):'—'), '', '']
     ],
     theme:'grid', margin:{left:L,right:L},
     styles:{fontSize:7.6, cellPadding:3, lineColor:[216,220,220]},
