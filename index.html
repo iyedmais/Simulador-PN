@@ -367,8 +367,13 @@ var MERCADO = {
   samCripto:       { valor:404,    fonte:'recorte' }
 };
 
-var INVESTIMENTO_TOTAL = 17;   // R$ milhões
-var PARCELA_PRIMARIA   = 12;   // R$ milhões
+/* Aporte da rodada. Editáveis no modo Avançado (S.aporteP e S.aporteS).
+   As funções abaixo são a única forma de ler esses valores no resto do código. */
+var APORTE_PRIMARIO_PADRAO   = 12;   // R$ milhões
+var APORTE_SECUNDARIO_PADRAO =  5;   // R$ milhões
+function aporteP(){ return (S && isFinite(S.aporteP)) ? S.aporteP : APORTE_PRIMARIO_PADRAO; }
+function aporteS(){ return (S && isFinite(S.aporteS)) ? S.aporteS : APORTE_SECUNDARIO_PADRAO; }
+function aporteTotal(){ return aporteP() + aporteS(); }
 var CORES = { comex:'#03518F', remessas:'#009743', cripto:'#F7C500', licenca:'#E2231D' };
 
 /* ---------- 2. Estado ---------- */
@@ -390,6 +395,7 @@ function estadoPadrao(){
     // Retenção
     churn:0.050,
     // Saída e rodada
+    aporteP:12, aporteS:5,
     multiploSaida:10, pctVendido:0.20, taxaDesconto:0.15,
     // Curva
     curvaDestravada:false, fCli:F_CLI_PADRAO.slice(), fTk:F_TK_PADRAO.slice()
@@ -553,27 +559,30 @@ function calcular(){
   m.ebitdaAno5   = a5.ebitda;
   m.valuation    = m.ebitdaAno5 * S.multiploSaida;
   m.participacao = m.valuation * S.pctVendido;
-  m.moicTotal    = m.participacao / INVESTIMENTO_TOTAL;
+  m.investTotal  = aporteTotal();
+  m.investPrim   = aporteP();
+  m.investSec    = aporteS();
+  m.moicTotal    = m.investTotal > 0 ? m.participacao / m.investTotal : 0;
   m.tirTotal     = m.moicTotal > 0 ? Math.pow(m.moicTotal, 1/5) - 1 : -1;
 
   // 5.7b — eficiência de capital da operação
   // Usa apenas o capital primário. NÃO é retorno do investidor: mede quanto
   // resultado a empresa produz por real que entrou no caixa.
   m.efic = {
-    ebitdaA5:   m.ebitdaAno5   / PARCELA_PRIMARIA,
-    ebitdaAcum: m.acum.ebitda  / PARCELA_PRIMARIA,
-    evSaida:    m.valuation    / PARCELA_PRIMARIA
+    ebitdaA5:   m.investPrim > 0 ? m.ebitdaAno5  / m.investPrim : 0,
+    ebitdaAcum: m.investPrim > 0 ? m.acum.ebitda / m.investPrim : 0,
+    evSaida:    m.investPrim > 0 ? m.valuation   / m.investPrim : 0
   };
 
   // 5.8 — sensibilidade
   m.sensibilidade = [];
   for(var mult=6; mult<=16; mult+=2){
     var val = m.ebitdaAno5 * mult, part = val * S.pctVendido;
-    var mt = part/INVESTIMENTO_TOTAL;
+    var mt = m.investTotal > 0 ? part/m.investTotal : 0;
     m.sensibilidade.push({
       multiplo:mult, valuation:val, participacao:part,
       moicTotal:mt,
-      evSobrePrimario: val/PARCELA_PRIMARIA,
+      evSobrePrimario: m.investPrim > 0 ? val/m.investPrim : 0,
       tir: mt>0 ? Math.pow(mt,1/5)-1 : -1
     });
   }
@@ -814,6 +823,12 @@ var TIPS = {
     'Por número de empresas: '+fmtInt(S.clientesMPE5)+' de '+fmtInt(MERCADO.universoMpe.valor)+' = '+fmtPct(M.pen.comexContagem,2)+'</span>'+
     'A diferença entre as duas medidas é a captura parcial: o cliente não troca de banco, a BROSBNK captura parte do fluxo dele.'; },
 
+  aporte: function(){ return '<b>Aporte da rodada</b><br><br>'+
+    'O <b>primário</b> entra no caixa da empresa e financia a operação. O <b>secundário</b> compra participação dos sócios atuais e não entra no caixa.'+
+    '<span class="tip-form">'+fmtMi(aporteP())+' primários + '+fmtMi(aporteS())+' secundários = '+fmtMi(aporteTotal())+'</span>'+
+    'O investidor desembolsa o total e recebe '+fmtPct(S.pctVendido,0)+' da empresa. As duas parcelas compram participação pelo mesmo preço por ação, então o retorno por real é igual nas duas.<br><br>'+
+    'MOIC e TIR usam sempre o <b>total</b>. A eficiência de capital usa apenas o <b>primário</b>.'; },
+
   valuation: function(){ return '<b>Valuation na saída</b><br><br>Quanto a empresa valeria no momento em que o investidor vende sua participação. O critério usado é multiplicar o resultado operacional do último ano por um número de referência de mercado.'+
     '<span class="tip-form">Ano 5: '+fmtMi(M.ebitdaAno5)+' × '+fmtX(S.multiploSaida,0)+'</span>'+
     '<b>'+fmtMi(M.valuation)+'</b><br><br>O múltiplo é ilustrativo. A aba Sensibilidade mostra de 6x a 16x.'; },
@@ -824,7 +839,7 @@ var TIPS = {
 
   moic: function(){ return '<b>MOIC</b><br><span style="font-size:11px;color:#9AAAAB">Multiple on Invested Capital — múltiplo sobre o capital investido</span><br><br>'+
     'Quantas vezes o dinheiro investido se multiplica até a saída.<br><br>'+
-    '<span class="tip-form">'+fmtMi(M.participacao)+' ÷ R$ 17,00 mi</span>'+
+    '<span class="tip-form">'+fmtMi(M.participacao)+' ÷ '+fmtMi(M.investTotal)+'</span>'+
     '<b>'+fmtX(M.moicTotal)+'</b><br><br>'+
     'A base é sempre o total desembolsado. Os R$ 12 milhões primários e os R$ 5 milhões secundários integram a mesma rodada e adquirem participação pelo mesmo preço por ação — o retorno por real investido é igual nas duas parcelas.<br><br>'+
     'O MOIC não considera o tempo. Quem cuida do tempo é a TIR.'; },
@@ -832,7 +847,7 @@ var TIPS = {
   tir: function(){ return '<b>TIR</b><br><span style="font-size:11px;color:#9AAAAB">Taxa Interna de Retorno</span><br><br>'+
     'O retorno em percentual por ano, considerando o tempo que o dinheiro fica investido.'+
     '<span class="tip-form">(participação ÷ investido) elevado a 1/5, menos 1</span>'+
-    'Transformar R$ 17 milhões em '+fmtMi(M.participacao)+' ao longo de 5 anos equivale a render <b>'+fmtPct(M.tirTotal,1)+' ao ano</b>.'; },
+    'Transformar '+fmtMi(M.investTotal)+' em '+fmtMi(M.participacao)+' ao longo de 5 anos equivale a render <b>'+fmtPct(M.tirTotal,1)+' ao ano</b>.'; },
 
   licenca: function(){ return '<b>Ganho de licença própria</b><br><br>A economia obtida quando a empresa passa a operar com licença própria e deixa de pagar um intermediário para executar parte das operações.'+
     '<span class="tip-form">'+fmtPct(S.ganhoCripto,2)+' sobre o volume da vertical cripto'+(S.ganhoComex>0?' + '+fmtPct(S.ganhoComex,2)+' sobre o volume de COMEX':'')+'</span>'+
@@ -880,6 +895,8 @@ var CONTROLES = [
 
   {g:'ret',   k:'churn',        rot:'Churn (ao ano)',                   min:0.0,  max:10.0,  passo:0.1, tipo:'pct', modo:'ambos',    tipRef:'churn'},
 
+  {g:'saida', k:'aporteP',      rot:'Aporte primário (R$ mi)',          min:0,    max:60,    passo:0.5, tipo:'dec', modo:'avancado', tipRef:'aporte'},
+  {g:'saida', k:'aporteS',      rot:'Aporte secundário (R$ mi)',        min:0,    max:60,    passo:0.5, tipo:'dec', modo:'avancado', tipRef:'aporte'},
   {g:'saida', k:'multiploSaida',rot:'Múltiplo de saída',                min:6,    max:16,    passo:1,   tipo:'mult0', modo:'ambos',  tipRef:'valuation'},
   {g:'saida', k:'pctVendido',   rot:'Participação vendida',             min:10,   max:35,    passo:1,   tipo:'pct', modo:'ambos',    tipRef:'participacao'},
   {g:'saida', k:'taxaDesconto', rot:'Taxa de desconto (p/ LTV descontado)', min:0, max:30,   passo:1,   tipo:'pct', modo:'ambos',    tipRef:'descontado'}
@@ -964,9 +981,12 @@ function renderControles(){
         h += '<div class="aviso aviso-ambar" data-testid="aviso-ticket-remessa">Remessa com ticket maior que COMEX — verifique a coerência da narrativa.</div>';
       }
       if(gr.id==='saida'){
-        h += '<div class="metrica" style="border-bottom:0;padding-bottom:0"><div class="metrica-rot">Investimento total</div>'+
-             '<div class="metrica-val" data-testid="investimento-total">R$ 17 mi</div>'+
-             '<div class="metrica-sub">Parcela primária: R$ 12 mi · secundária: R$ 5 mi</div></div>';
+        h += '<div class="metrica" style="border-bottom:0;padding-bottom:0"><div class="metrica-rot">Investimento total '+htmlAjuda('aporte')+'</div>'+
+             '<div class="metrica-val" data-testid="investimento-total">'+fmtMi(aporteTotal())+'</div>'+
+             '<div class="metrica-sub">Primário: '+fmtMi(aporteP())+' · secundário: '+fmtMi(aporteS())+'</div></div>';
+        if(aporteTotal() <= 0){
+          h += '<div class="aviso aviso-ambar" data-testid="aviso-aporte-zero">Aporte total igual a zero — MOIC e TIR não podem ser calculados.</div>';
+        }
       }
     }
     h += '</div>';
@@ -1175,8 +1195,8 @@ function renderKpis(){
     {rot:'Receita bruta A5', val:fmtMi(M.a5.receitaBruta),        nota:'Acumulada: '+fmtMi(M.acum.receitaBruta),  tip:'receita',      tid:'kpi-receita'},
     {rot:'EBITDA Ano 5',     val:fmtMi(M.a5.ebitda),              nota:M.breakEven?('Break-even '+(M.breakEvenMes?('no mês '+M.breakEvenMes):('dentro do Ano '+M.breakEven))):'Sem break-even em 5 anos', tip:'ebitda', tid:'kpi-ebitda'},
     {rot:'Margem EBITDA A5', val:fmtPct(M.a5.margemEbitda,1),     nota:'Sobre a receita bruta',                   tip:'margemEbitda', tid:'kpi-margem'},
-    {rot:'MOIC',             val:fmtX(M.moicTotal),               nota:'Sobre o total desembolsado de R$ 17 mi', tip:'moic', tid:'kpi-moic'},
-    {rot:'TIR',              val:fmtPct(M.tirTotal,1)+' a.a.',    nota:'Sobre o total desembolsado de R$ 17 mi', tip:'tir',  tid:'kpi-tir'}
+    {rot:'MOIC',             val:fmtX(M.moicTotal),               nota:'Sobre o total desembolsado de '+fmtMi(M.investTotal), tip:'moic', tid:'kpi-moic'},
+    {rot:'TIR',              val:fmtPct(M.tirTotal,1)+' a.a.',    nota:'Sobre o total desembolsado de '+fmtMi(M.investTotal), tip:'tir',  tid:'kpi-tir'}
   ];
   document.getElementById('kpis').innerHTML = itens.map(function(k){
     return '<div class="kpi" data-testid="'+k.tid+'"><div class="kpi-rot"><span>'+k.rot+'</span>'+htmlAjuda(k.tip)+'</div>'+
@@ -1195,7 +1215,7 @@ function narrativa(){
     (M.breakEven ? 'A operação passa a se sustentar sozinha dentro do <strong>Ano '+M.breakEven+'</strong>. ' : 'A operação não atinge break-even dentro dos cinco anos neste cenário. ')+
     'O resultado vem de '+lista+' operando sobre a mesma base de clientes: é a <strong>orquestração</strong> — coordenar vários provedores, moedas e rotas de pagamento por trás de uma interface única, escolhendo o melhor caminho para cada operação sem que o cliente precise saber disso — que permite somar verticais sem somar estrutura. '+
     (S.licencaOn ? 'A licença própria acrescenta '+fmtMi(M.a5.ganhoLicenca)+' ao resultado do Ano 5, por redução de custo e não por receita nova. ' : '')+
-    'Com múltiplo de saída de <strong>'+fmtX(S.multiploSaida,0)+'</strong> e '+fmtPct(S.pctVendido,0)+' de participação vendida, os R$ 17 milhões investidos se transformam em '+
+    'Com múltiplo de saída de <strong>'+fmtX(S.multiploSaida,0)+'</strong> e '+fmtPct(S.pctVendido,0)+' de participação vendida, os '+fmtMi(M.investTotal)+' investidos se transformam em '+
     '<strong>'+fmtMi(M.participacao)+'</strong>, o equivalente a '+fmtX(M.moicTotal)+' o capital e '+fmtPct(M.tirTotal,1)+' ao ano.';
 }
 
@@ -1435,11 +1455,11 @@ function painelClientes(){
 function painelRetorno(){
   var h = '<div class="grade2">';
   h += '<div class="cartao"><div class="cartao-titulo">Estrutura da rodada</div>'+
-       '<div class="metrica"><div class="metrica-rot">Investimento total</div><div class="metrica-val">R$ 17,00 mi</div></div>'+
-       '<div class="metrica"><div class="metrica-rot">Parcela primária <span class="sigla">entra no caixa da empresa</span></div><div class="metrica-val">R$ 12,00 mi</div></div>'+
+       '<div class="metrica"><div class="metrica-rot">Investimento total '+htmlAjuda('aporte')+'</div><div class="metrica-val" data-testid="ret-total">'+fmtMi(M.investTotal)+'</div></div>'+
+       '<div class="metrica"><div class="metrica-rot">Parcela primária <span class="sigla">entra no caixa da empresa</span></div><div class="metrica-val" data-testid="ret-primario">'+fmtMi(M.investPrim)+'</div></div>'+
        '<div class="metrica"><div class="metrica-rot">Parcela secundária <span class="sigla">vai para um sócio atual que vende participação</span></div><div class="metrica-val">R$ 5,00 mi</div></div>'+
        '<div class="metrica" style="border-bottom:0"><div class="metrica-rot">Participação vendida</div><div class="metrica-val">'+fmtPct(S.pctVendido,0)+'</div></div>'+
-       '<div class="aviso aviso-info" data-testid="frase-rodada">R$ 17 milhões, sendo R$ 12 milhões primários e R$ 5 milhões secundários.</div></div>';
+       '<div class="aviso aviso-info" data-testid="frase-rodada">'+fmtMi(M.investTotal)+', sendo '+fmtMi(M.investPrim)+' primários e '+fmtMi(M.investSec)+' secundários.</div></div>';
   h += '<div class="cartao"><div class="cartao-titulo">Saída projetada</div>'+
        '<div class="metrica"><div class="metrica-rot">EBITDA do Ano 5 '+htmlAjuda('ebitda')+'</div><div class="metrica-val">'+fmtMi(M.ebitdaAno5)+'</div></div>'+
        '<div class="metrica"><div class="metrica-rot">Múltiplo de saída</div><div class="metrica-val">'+fmtX(S.multiploSaida,0)+'</div></div>'+
@@ -1452,23 +1472,23 @@ function painelRetorno(){
   h += '<div class="grade2">'+
        '<div class="cartao"><div class="cartao-titulo">MOIC '+htmlAjuda('moic')+'<span class="pill">múltiplo sobre o capital investido</span></div>'+
        '<div class="metrica-val" style="font-size:34px" data-testid="moic-total">'+fmtX(M.moicTotal)+'</div>'+
-       '<div class="metrica-sub" style="margin-top:6px">'+fmtMi(M.participacao)+' ÷ R$ 17,00 mi — o total desembolsado pelo investidor.</div>'+
+       '<div class="metrica-sub" style="margin-top:6px">'+fmtMi(M.participacao)+' ÷ '+fmtMi(M.investTotal)+' — o total desembolsado pelo investidor.</div>'+
        '<div style="font-size:12.5px;color:#6B7574;margin-top:12px;line-height:1.55">O MOIC não considera o tempo: o mesmo múltiplo em 5 ou em 15 anos seria o mesmo número. Quem cuida do tempo é a TIR.</div></div>'+
        '<div class="cartao"><div class="cartao-titulo">TIR '+htmlAjuda('tir')+'<span class="pill">Taxa Interna de Retorno</span></div>'+
        '<div class="metrica-val" style="font-size:34px" data-testid="tir-total">'+fmtPct(M.tirTotal,1)+' ao ano</div>'+
-       '<div class="metrica-sub" style="margin-top:6px">Transformar R$ 17 milhões em '+fmtMi(M.participacao)+' em 5 anos.</div></div></div>';
+       '<div class="metrica-sub" style="margin-top:6px">Transformar '+fmtMi(M.investTotal)+' em '+fmtMi(M.participacao)+' em 5 anos.</div></div></div>';
 
   h += '<div class="cartao" data-testid="eficiencia-capital"><div class="cartao-titulo">Eficiência de capital da operação</div>'+
        '<div class="grade3">'+
        '<div class="metrica"><div class="metrica-rot">EBITDA do Ano 5 sobre capital primário</div>'+
        '<div class="metrica-val" data-testid="efic-ebitda-a5">'+fmtX(M.efic.ebitdaA5)+'</div>'+
-       '<div class="metrica-sub">'+fmtMi(M.ebitdaAno5)+' ÷ R$ 12,00 mi</div></div>'+
+       '<div class="metrica-sub">'+fmtMi(M.ebitdaAno5)+' ÷ '+fmtMi(M.investPrim)+'</div></div>'+
        '<div class="metrica"><div class="metrica-rot">EBITDA acumulado em 5 anos sobre capital primário</div>'+
        '<div class="metrica-val" data-testid="efic-ebitda-acum">'+fmtX(M.efic.ebitdaAcum)+'</div>'+
-       '<div class="metrica-sub">'+fmtMi(M.acum.ebitda)+' ÷ R$ 12,00 mi</div></div>'+
+       '<div class="metrica-sub">'+fmtMi(M.acum.ebitda)+' ÷ '+fmtMi(M.investPrim)+'</div></div>'+
        '<div class="metrica"><div class="metrica-rot">Valor de empresa na saída sobre capital primário</div>'+
        '<div class="metrica-val" data-testid="efic-ev">'+fmtX(M.efic.evSaida)+'</div>'+
-       '<div class="metrica-sub">'+fmtMi(M.valuation)+' ÷ R$ 12,00 mi · múltiplo de '+fmtX(S.multiploSaida,0)+'</div></div>'+
+       '<div class="metrica-sub">'+fmtMi(M.valuation)+' ÷ '+fmtMi(M.investPrim)+' · múltiplo de '+fmtX(S.multiploSaida,0)+'</div></div>'+
        '</div>'+
        '<div class="aviso aviso-info" data-testid="aviso-eficiencia" style="margin-top:14px">Os indicadores de eficiência de capital demonstram a relação entre o capital primário destinado à operação e os resultados projetados da empresa. Não representam MOIC, TIR ou retorno individual do investidor.</div></div>';
   return h;
@@ -1489,7 +1509,7 @@ function painelSensibilidade(){
             cor: l.multiplo===Math.round(S.multiploSaida) ? '#0C4E54' : '#7FB6BC'};
   });
   h += '<div class="cartao"><div class="cartao-titulo">MOIC por múltiplo '+htmlAjuda('moic')+'</div>'+graficoBarras(barras,{h:230})+
-       '<div class="legenda"><span>MOIC sobre o total desembolsado de R$ 17 milhões.</span></div></div>';
+       '<div class="legenda"><span>MOIC sobre o total desembolsado de '+fmtMi(M.investTotal)+'.</span></div></div>';
   return h;
 }
 
@@ -1821,8 +1841,9 @@ function premissasLista(){
     ['CAC de remessas (R$)', S.cacRem],
     ['Churn ao ano', S.churn],
     ['Múltiplo de saída', S.multiploSaida],
-    ['Investimento total (R$ mi)', INVESTIMENTO_TOTAL],
-    ['Parcela primária (R$ mi)', PARCELA_PRIMARIA],
+    ['Investimento total (R$ mi)', aporteTotal()],
+    ['Parcela primária (R$ mi)', aporteP()],
+    ['Parcela secundária (R$ mi)', aporteS()],
     ['Participação vendida', S.pctVendido],
     ['Taxa de desconto ao ano', S.taxaDesconto],
     ['Fatores de clientes', S.fCli.join(' · ')],
@@ -1900,9 +1921,9 @@ function exportarXlsx(){
     ['Valuation (R$ mi)', M.valuation],
     ['Participação vendida', S.pctVendido],
     ['Valor da participação (R$ mi)', M.participacao],
-    ['Investimento total (R$ mi)', INVESTIMENTO_TOTAL],
-    ['Parcela primária (R$ mi)', PARCELA_PRIMARIA],
-    ['Parcela secundária (R$ mi)', INVESTIMENTO_TOTAL-PARCELA_PRIMARIA],
+    ['Investimento total (R$ mi)', M.investTotal],
+    ['Parcela primária (R$ mi)', M.investPrim],
+    ['Parcela secundária (R$ mi)', M.investSec],
     ['MOIC total', M.moicTotal],
 
     ['TIR total ao ano', M.tirTotal],
@@ -1942,7 +1963,7 @@ function exportarPdf(){
     ['Receita bruta Ano 5', fmtMi(M.a5.receitaBruta)],
     ['EBITDA Ano 5', fmtMi(M.a5.ebitda)],
     ['Margem EBITDA', fmtPct(M.a5.margemEbitda,1)],
-    ['MOIC (R$ 17 mi)', fmtX(M.moicTotal)],
+    ['MOIC (sobre '+fmtMi(M.investTotal)+')', fmtX(M.moicTotal)],
     ['TIR ao ano', fmtPct(M.tirTotal,1)]
   ];
   var cw = (W-2*L)/3;
@@ -1996,9 +2017,9 @@ function exportarPdf(){
   doc.autoTable({
     startY:y, head:[['Retorno','Valor','Indicador','Valor']],
     body:[
-      ['Valuation na saída', fmtMi(M.valuation), 'MOIC sobre R$ 17 mi', fmtX(M.moicTotal)],
+      ['Valuation na saída', fmtMi(M.valuation), 'MOIC sobre '+fmtMi(M.investTotal), fmtX(M.moicTotal)],
       ['Valor da participação', fmtMi(M.participacao), 'EBITDA A5 / capital primário', fmtX(M.efic.ebitdaA5)],
-      ['Participação vendida', fmtPct(S.pctVendido,0), 'TIR sobre R$ 17 mi', fmtPct(M.tirTotal,1)+' a.a.'],
+      ['Participação vendida', fmtPct(S.pctVendido,0), 'TIR sobre '+fmtMi(M.investTotal), fmtPct(M.tirTotal,1)+' a.a.'],
       ['Múltiplo de saída', fmtX(S.multiploSaida,0), 'EV de saída / capital primário', fmtX(M.efic.evSaida)],
       ['Break-even', M.breakEvenMes?('mês '+M.breakEvenMes):(M.breakEven?('Ano '+M.breakEven):'—'), 'LTV / CAC', nf(M.ltvSobreCac,1)+'x'],
       ['Acumulado recuperado', M.recuperacaoMes?('mês '+M.recuperacaoMes):(M.recuperacaoAno?('Ano '+M.recuperacaoAno):'—'), '', '']
@@ -2011,7 +2032,7 @@ function exportarPdf(){
   y = doc.lastAutoTable.finalY + 14;
 
   doc.setFontSize(7.4); doc.setTextColor(120,125,125);
-  doc.text('R$ 17 milhões, sendo R$ 12 milhões primários e R$ 5 milhões secundários.', L, y); y += 11;
+  doc.text(fmtMi(M.investTotal)+', sendo '+fmtMi(M.investPrim)+' primários e '+fmtMi(M.investSec)+' secundários.', L, y); y += 11;
   var prem = premissasLista().filter(function(p){ return p[0]!=='Aviso'; })
     .map(function(p){ return p[0]+': '+(typeof p[1]==='number' ? nf(p[1], Math.abs(p[1])<1 ? 4 : 2) : p[1]); }).join(' · ');
   var linhasPrem = doc.splitTextToSize('Premissas: '+prem, W-2*L);
