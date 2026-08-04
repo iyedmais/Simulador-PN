@@ -303,7 +303,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-4</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-5</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -894,8 +894,8 @@ var CONTROLES = [
   // grupo, chave, rótulo, min, max, passo, tipo, modo, tooltip
   {g:'comex', k:'clientesMPE5', rot:'Clientes MPE no Ano 5',            min:1000, max:12000, passo:50,  tipo:'int', modo:'ambos',    tip:'Quantas micro e pequenas empresas — empresas de menor porte, na classificação das estatísticas oficiais de comércio exterior — estarão ativas na plataforma no quinto ano. Os anos anteriores são derivados da curva de entrada.'},
   {g:'comex', k:'tkMPE5',       rot:'Ticket médio MPE (R$ mil/ano)',    min:300,  max:1700,  passo:1,   tipo:'int', modo:'ambos',    tipRef:'ticket'},
-  {g:'comex', k:'clientesMed5', rot:'Clientes médios no Ano 5',         min:0,    max:300,   passo:1,   tipo:'int', modo:'avancado', tip:'Quantas empresas de médio porte estarão ativas no quinto ano. São poucas em número, mas com volume por cliente muito maior.'},
-  {g:'comex', k:'tkMed5',       rot:'Ticket médio das médias (R$ mil/ano)', min:1000, max:10000, passo:50, tipo:'int', modo:'avancado', tipRef:'ticket'},
+  {g:'comex', k:'clientesMed5', rot:'Clientes médios no Ano 5',         min:0,    max:5000,  passo:10,  tipo:'int', modo:'avancado', tip:'Quantas empresas de médio porte estarão ativas no quinto ano. O volume por cliente é muito maior que o de uma MPE, mas a captura da carteira tende a ser menor, porque a empresa maior tem mesa de câmbio e poder de negociação. O universo de referência é o SAM de médias dividido pela carteira declarada.'},
+  {g:'comex', k:'tkMed5',       rot:'Ticket médio das médias (R$ mil/ano)', min:200,  max:10000, passo:50, tipo:'int', modo:'avancado', tipRef:'ticket'},
   {g:'comex', k:'takeComex',    rot:'Take rate COMEX — MPE',            min:0.80, max:2.00,  passo:0.01, tipo:'pct', modo:'ambos',   tipRef:'take'},
   {g:'comex', k:'carteiraMed',  rot:'Carteira COMEX da média (R$ mil/ano)', min:500,  max:12000, passo:100, tipo:'int', modo:'avancado', tipRef:'carteiraMed'},
   {g:'comex', k:'takeMed',      rot:'Take rate COMEX — médias',         min:0.50, max:2.00,  passo:0.01, tipo:'pct', modo:'avancado', tipRef:'takeMed'},
@@ -915,8 +915,8 @@ var CONTROLES = [
   {g:'custo', k:'custoProvedores', rot:'Custo com provedores',          min:0.20, max:0.80,  passo:0.01, tipo:'pct', modo:'ambos',   tipRef:'custoExec'},
   {g:'custo', k:'aliquota',     rot:'Provisão tributária',              min:0.0,  max:15.0,  passo:0.1, tipo:'pct', modo:'avancado', tipRef:'tributos'},
   {g:'custo', k:'multOpex',     rot:'Multiplicador de OPEX',            min:0.50, max:2.00,  passo:0.01, tipo:'mult', modo:'apresentacao', tipRef:'opex'},
-  {g:'custo', k:'cac',          rot:'CAC (R$ por cliente)',             min:200,  max:1500,  passo:1,   tipo:'int', modo:'ambos',    tipRef:'cac'},
-  {g:'custo', k:'cacRem',       rot:'CAC de remessas (R$)',             min:100,  max:1500,  passo:1,   tipo:'int', modo:'avancado', tipRef:'cac'},
+  {g:'custo', k:'cac',          rot:'CAC (R$ por cliente)',             min:200,  max:6000,  passo:50,   tipo:'int', modo:'ambos',    tipRef:'cac'},
+  {g:'custo', k:'cacRem',       rot:'CAC de remessas (R$)',             min:100,  max:6000,  passo:50,   tipo:'int', modo:'avancado', tipRef:'cac'},
 
   {g:'ret',   k:'churn',        rot:'Churn (ao ano)',                   min:0.0,  max:10.0,  passo:0.1, tipo:'pct', modo:'ambos',    tipRef:'churn'},
 
