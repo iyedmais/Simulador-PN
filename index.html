@@ -303,7 +303,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-9</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-10</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -1457,7 +1457,14 @@ function painelMercado(){
     som: fmtBi(M.a5.tpvComexMPE), pen: M.pen.comexValor,
     extra: '<div class="metrica"><div class="metrica-rot">Penetração por número de empresas '+htmlAjuda('penetracao')+'</div>'+
            '<div class="metrica-val">'+fmtPct(M.pen.comexContagem,2)+'</div>'+
-           '<div class="metrica-sub">'+fmtInt(S.clientesMPE5)+' de '+fmtInt(MERCADO.universoMpe.valor)+' empresas · '+MERCADO.universoMpe.fonte+'</div></div>'
+           '<div class="metrica-sub">'+fmtInt(S.clientesMPE5)+' de '+fmtInt(MERCADO.universoMpe.valor)+' empresas · '+MERCADO.universoMpe.fonte+'</div></div>'+
+           '<div class="metrica"><div class="metrica-rot">Captura da carteira do cliente '+htmlAjuda('carteiraMpe')+'</div>'+
+           '<div class="metrica-val" data-testid="captura-mpe">'+fmtPct(S.capturaMpeIn,1)+'</div>'+
+           '<div class="metrica-sub">'+fmtMil(S.tkMPE5)+' de '+fmtMil(carteiraMpe())+' movimentados por ano'+
+           (S.dedupOn ? ' · carteira sobre '+fmtInt(universoMpeEfetivo())+' empresas únicas' : ' · carteira sobre a soma bruta')+'</div></div>'+
+           '<div class="metrica" style="border-bottom:0"><div class="metrica-rot">Take rate aplicada '+htmlAjuda('take')+'</div>'+
+           '<div class="metrica-val">'+fmtPct(S.takeComex,2)+'</div>'+
+           '<div class="metrica-sub">Médias: '+fmtPct(S.takeMed,2)+' · receita das MPEs no Ano 5: '+fmtMi(M.a5.receitaComexMPE)+'</div></div>'
   });
   h += cartaoMercado({
     id:'comex-med', titulo:'COMEX — médias empresas', cor:CORES.comex,
