@@ -303,7 +303,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-6</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-7</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -902,7 +902,7 @@ var TIPS = {
 var CONTROLES = [
   // grupo, chave, rótulo, min, max, passo, tipo, modo, tooltip
   {g:'comex', k:'clientesMPE5', rot:'Clientes MPE no Ano 5',            min:1000, max:12000, passo:50,  tipo:'int', modo:'ambos',    tip:'Quantas micro e pequenas empresas — empresas de menor porte, na classificação das estatísticas oficiais de comércio exterior — estarão ativas na plataforma no quinto ano. Os anos anteriores são derivados da curva de entrada.'},
-  {g:'comex', k:'tkMPE5',       rot:'Ticket médio MPE (R$ mil/ano)',    min:300,  max:1700,  passo:1,   tipo:'int', modo:'ambos',    tipRef:'ticket'},
+  {g:'comex', k:'tkMPE5',       rot:'Ticket médio MPE (R$ mil/ano)',    min:300,  max:1700,  passo:1,   tipo:'int', modo:'ambos',    tipRef:'ticket', nota:function(){ return notaTicketMPE(); }},
   {g:'comex', k:'takeComex',    rot:'Take rate cobrada',                min:0.80, max:2.00,  passo:0.01, tipo:'pct', modo:'ambos',   tipRef:'take'},
 
   {g:'comexmed', k:'clientesMed5', rot:'Clientes no Ano 5',             min:0,    max:5000,  passo:10,  tipo:'int', modo:'avancado', tip:'Quantas empresas de médio porte estarão ativas no quinto ano. O volume por cliente é muito maior que o de uma MPE, mas a captura da carteira tende a ser menor, porque a empresa maior tem mesa de câmbio e poder de negociação.'},
@@ -911,7 +911,7 @@ var CONTROLES = [
   {g:'comexmed', k:'takeMed',      rot:'Take rate cobrada',             min:0.50, max:2.00,  passo:0.01, tipo:'pct', modo:'avancado', tipRef:'takeMed'},
 
   {g:'rem',   k:'clientesRem5', rot:'Clientes de remessas no Ano 5',    min:0,    max:10000, passo:50,  tipo:'int', modo:'ambos',    tip:'Quantos clientes usarão a plataforma para enviar e receber dinheiro do exterior fora das operações de comércio exterior.'},
-  {g:'rem',   k:'tkRem5',       rot:'Ticket médio de remessa (R$ mil/ano)', min:50, max:1000, passo:1,  tipo:'int', modo:'ambos',    tipRef:'ticket'},
+  {g:'rem',   k:'tkRem5',       rot:'Ticket médio de remessa (R$ mil/ano)', min:50, max:1000, passo:1,  tipo:'int', modo:'ambos',    tipRef:'ticket', nota:function(){ return notaTicketRem(); }},
   {g:'rem',   k:'takeRem',      rot:'Take rate remessas',               min:0.80, max:2.00,  passo:0.01, tipo:'pct', modo:'avancado', tipRef:'take'},
 
   {g:'cripto',k:'tpvCripto5',   rot:'TPV cripto Ano 5 (R$ bi)',         min:0,    max:10,    passo:0.05, tipo:'dec', modo:'ambos',   tipRef:'tpv'},
@@ -947,6 +947,22 @@ var GRUPOS = [
   {id:'ret',    titulo:'Retenção'},
   {id:'saida',  titulo:'Saída e rodada'}
 ];
+
+/* Notas derivadas exibidas sob os sliders de ticket. */
+function notaTicketMPE(){
+  var carteira = M && M.tkUniverso ? M.tkUniverso : 0;
+  if(!carteira) return '';
+  return 'Ticket que passa pela plataforma: <b>' + fmtMil(S.tkMPE5) + ' por ano</b> — ' +
+         fmtPct(S.tkMPE5/carteira, 0) + ' da carteira média de ' + fmtMil(carteira) +
+         '. <span style="opacity:.75">A carteira é derivada do MDIC: ' + fmtBi(MERCADO.samComexMpe.valor) +
+         ' ÷ ' + fmtInt(MERCADO.universoMpe.valor) + ' empresas.</span>';
+}
+function notaTicketRem(){
+  var pen = M && M.pen ? M.pen.remessas : 0;
+  return 'Ticket de <b>' + fmtMil(S.tkRem5) + ' por ano</b> — cerca de ' + fmtMil(S.tkRem5/12) +
+         ' por mês por cliente. A base projetada representa ' + fmtPct(pen,2) +
+         ' do mercado de remessas.';
+}
 
 function valorExibido(c){
   var v = S[c.k];
@@ -1770,6 +1786,16 @@ function atualizarLeve(c, el){
     if(elDet) elDet.textContent = 'Primário: ' + fmtMi(aporteP()) + ' · secundário: ' + fmtMi(aporteS());
     var avZero = document.querySelector('[data-testid="aviso-aporte-zero"]');
     if((aporteTotal() <= 0) !== !!avZero){ renderControles(); return; }
+  }
+
+  // notas derivadas dos tickets
+  if(c.k === 'tkMPE5' || c.k === 'clientesMPE5'){
+    var nMpe = document.querySelector('[data-testid="nota-tkMPE5"]');
+    if(nMpe) nMpe.innerHTML = notaTicketMPE();
+  }
+  if(c.k === 'tkRem5' || c.k === 'clientesRem5'){
+    var nRem = document.querySelector('[data-testid="nota-tkRem5"]');
+    if(nRem) nRem.innerHTML = notaTicketRem();
   }
 
   // nota derivada da captura das médias
