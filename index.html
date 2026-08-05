@@ -303,7 +303,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-11</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-13</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -404,7 +404,7 @@ function estadoPadrao(){
   return {
     modo:'apresentacao',
     // COMEX
-    clientesMPE5:4000, tkMPE5:650, dedupOn:true, universoMpeUnico:33600, capturaMpeIn:0.5512,
+    clientesMPE5:4000, tkMPE5:650, dedupOn:false, universoMpeUnico:33600, capturaMpeIn:0.6894,
     clientesMed5:600, tkMed5:1050, takeComex:0.0145,
     carteiraMed:4200, capturaMedIn:0.25, takeMed:0.0120,
     // Remessas
@@ -1522,18 +1522,65 @@ function painelMercado(){
        '<span class="semaforo sem-vermelho">acima de 15% · agressivo</span></div>'+
        '<div style="font-size:12.5px;color:#6B7574;margin-top:12px;line-height:1.55">O semáforo indica o quanto a projeção depende de conquistar uma fatia grande do mercado. Quanto menor a penetração necessária, menos o plano depende de um cenário perfeito.</div></div>';
 
-  h += '<div class="grade2"><div class="cartao" data-testid="gap-penetracao"><div class="cartao-titulo">Captura parcial em COMEX '+htmlAjuda('penetracao')+'</div>'+
-       '<div class="metrica"><div class="metrica-rot">Por número de empresas</div><div class="metrica-val">'+fmtPct(M.pen.comexContagem,2)+'</div></div>'+
-       '<div class="metrica"><div class="metrica-rot">Por valor movimentado</div><div class="metrica-val">'+fmtPct(M.pen.comexValor,2)+'</div></div>'+
-       '<div class="metrica" style="border-bottom:0"><div class="metrica-rot">Diferença entre as duas medidas</div><div class="metrica-val">'+nf(M.gapPenetracao*100,2)+' pontos percentuais</div>'+
-       '<div class="metrica-sub" style="line-height:1.55;margin-top:6px">A diferença entre as duas medidas é a captura parcial: o cliente não troca de banco, a BROSBNK captura parte do fluxo dele.</div></div></div>';
+  // ---- Consolidado de COMEX: MPE e médias lado a lado ----
+  var somMpe = M.a5.tpvComexMPE, somMed = M.a5.tpvComexMed;
+  var samMpe = MERCADO.samComexMpe.valor, samMed = MERCADO.samComexMedias.valor;
+  var carMpe = carteiraMpe(), carMed = S.carteiraMed;
+  var uniMpe = universoMpeEfetivo(), uniMed = M.universoMed;
 
-  h += '<div class="cartao"><div class="cartao-titulo">Ticket do universo × ticket do plano</div>'+
-       '<div class="metrica"><div class="metrica-rot">Ticket médio do universo de MPEs</div><div class="metrica-val">'+fmtMil(M.tkUniverso)+'</div>'+
-       '<div class="metrica-sub">'+fmtBi(MERCADO.samComexMpe.valor)+' ÷ '+fmtInt(MERCADO.universoMpe.valor)+' empresas</div></div>'+
-       '<div class="metrica"><div class="metrica-rot">Ticket escolhido no cenário</div><div class="metrica-val">'+fmtMil(S.tkMPE5)+'</div></div>'+
-       '<div class="metrica" style="border-bottom:0"><div class="metrica-rot">Percentual de captura do fluxo do cliente</div><div class="metrica-val">'+fmtPct(M.capturaTicket,1)+'</div>'+
-       '<div class="metrica-sub" style="line-height:1.55;margin-top:6px">É a fatia do movimento anual de cada empresa que passa pela plataforma. Acima de 100% significaria capturar mais do que a empresa média movimenta.</div></div></div></div>';
+  function linhaCons(rot, vMpe, vMed, vTot, tip){
+    return '<tr><td>'+rot+(tip?' '+htmlAjuda(tip):'')+'</td><td>'+vMpe+'</td><td>'+vMed+'</td><td>'+(vTot===null?'—':vTot)+'</td></tr>';
+  }
+
+  h += '<div class="cartao" data-testid="consolidado-comex"><div class="cartao-titulo">COMEX consolidado — mercado, captura e penetração '+htmlAjuda('penetracao')+'</div>'+
+       '<div class="tab-rolagem"><table class="dados" data-testid="tabela-consolidado"><thead><tr>'+
+       '<th style="text-align:left">Indicador</th><th>Micro e pequenas</th><th>Médias</th><th>COMEX total</th>'+
+       '</tr></thead><tbody>';
+
+  h += '<tr class="grupo"><td colspan="4">Mercado</td></tr>';
+  h += linhaCons('SAM — mercado atendível', fmtBi(samMpe), fmtBi(samMed,1), fmtBi(samMpe+samMed,1), 'sam');
+  h += linhaCons('Universo de empresas',
+        fmtInt(uniMpe) + (S.dedupOn ? ' <span style="opacity:.6">únicas</span>' : ' <span style="opacity:.6">brutas</span>'),
+        fmtInt(uniMed) + ' <span style="opacity:.6">implícito</span>',
+        fmtInt(uniMpe + uniMed));
+  h += linhaCons('Carteira COMEX por empresa', fmtMil(carMpe), fmtMil(carMed), null, 'carteiraMpe');
+
+  h += '<tr class="grupo"><td colspan="4">Plano no Ano 5</td></tr>';
+  h += linhaCons('Clientes', fmtInt(S.clientesMPE5), fmtInt(S.clientesMed5), fmtInt(S.clientesMPE5 + S.clientesMed5));
+  h += linhaCons('Ticket capturado por cliente', fmtMil(S.tkMPE5), fmtMil(S.tkMed5), null);
+  h += linhaCons('Captura da carteira do cliente',
+        '<b>'+fmtPct(S.tkMPE5/carMpe,1)+'</b>', '<b>'+fmtPct(M.capturaMed,1)+'</b>', null);
+  h += linhaCons('SOM — volume projetado', fmtBi(somMpe), fmtBi(somMed), fmtBi(somMpe+somMed));
+  h += linhaCons('Take rate aplicada', fmtPct(S.takeComex,2), fmtPct(S.takeMed,2),
+        fmtPct((M.a5.receitaComexMPE+M.a5.receitaComexMed)/((somMpe+somMed)*1000),2));
+  h += linhaCons('Receita bruta', fmtMi(M.a5.receitaComexMPE), fmtMi(M.a5.receitaComexMed),
+        fmtMi(M.a5.receitaComexMPE+M.a5.receitaComexMed));
+
+  h += '<tr class="grupo"><td colspan="4">Penetração</td></tr>';
+  h += '<tr class="destaque"><td>Por número de empresas</td>'+
+       '<td>'+fmtPct(S.clientesMPE5/uniMpe,2)+'</td>'+
+       '<td>'+fmtPct(uniMed>0?S.clientesMed5/uniMed:0,2)+'</td>'+
+       '<td>'+fmtPct((S.clientesMPE5+S.clientesMed5)/(uniMpe+uniMed),2)+'</td></tr>';
+  h += '<tr class="destaque"><td>Por valor movimentado</td>'+
+       '<td>'+fmtPct(somMpe/samMpe,2)+'</td>'+
+       '<td>'+fmtPct(somMed/samMed,2)+'</td>'+
+       '<td>'+fmtPct((somMpe+somMed)/(samMpe+samMed),2)+'</td></tr>';
+  h += linhaCons('Diferença entre as duas medidas',
+        nf((S.clientesMPE5/uniMpe - somMpe/samMpe)*100,2)+' p.p.',
+        nf(((uniMed>0?S.clientesMed5/uniMed:0) - somMed/samMed)*100,2)+' p.p.',
+        nf(((S.clientesMPE5+S.clientesMed5)/(uniMpe+uniMed) - (somMpe+somMed)/(samMpe+samMed))*100,2)+' p.p.');
+
+  h += '</tbody></table></div>';
+  h += '<div style="font-size:12.5px;color:#6B7574;line-height:1.55;margin-top:12px">'+
+       'A penetração por empresas é sempre maior que a por valor. A diferença é a <b>captura parcial</b>: o cliente não troca de banco, a BROSBNK fica com uma fatia do fluxo dele. '+
+       'Quanto maior essa diferença, menos o plano depende de conquistar o cliente por inteiro.</div>';
+  if(S.dedupOn){
+    h += '<div class="aviso aviso-ambar" data-testid="aviso-base-penetracao">A penetração por empresas acima usa a base deduplicada de '+fmtInt(uniMpe)+' empresas — a mesma que define a carteira. '+
+         'Sobre as '+fmtInt(MERCADO.universoMpe.valor)+' brutas seria '+fmtPct(S.clientesMPE5/MERCADO.universoMpe.valor,2)+'. '+
+         'Use a mesma base nas duas contas ao apresentar.</div>';
+  }
+  h += '</div>';
+
   return h;
 }
 
