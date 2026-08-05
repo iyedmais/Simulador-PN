@@ -58,7 +58,7 @@ header.topo{
 .btn-pequeno{padding:5px 9px; font-size:12px;}
 
 .btn-icone{
-  display:none; align-items:center; justify-content:center; gap:0;
+  display:inline-flex; align-items:center; justify-content:center; gap:0;
   width:34px; height:32px; padding:0; flex:0 0 34px;
 }
 .btn-icone svg{width:17px; height:17px; display:block;}
@@ -69,6 +69,7 @@ header.topo{
 
 /* ---------- Layout ---------- */
 .corpo{display:flex; align-items:flex-start; padding-top:var(--header-h); min-height:100vh;}
+body.painel-recolhido aside.controles{display:none;}
 aside.controles{
   width:380px; flex:0 0 380px; background:var(--superficie);
   border-right:1px solid var(--borda);
@@ -276,7 +277,6 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
 @media (max-width:1400px){ .kpis{grid-template-columns:repeat(3,1fr);} }
 @media (max-width:1023px){
   aside.controles{display:none;}
-  #btnControles{display:inline-flex;}
   main.resultados{padding:12px 12px 130px;}
   .grade2,.grade3,.grade4{grid-template-columns:1fr;}
   .moic-par{grid-template-columns:1fr;}
@@ -366,7 +366,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-34</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-35</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -1991,7 +1991,7 @@ var _tmAlinhar = null;
 if(typeof window !== 'undefined' && window.addEventListener){
   window.addEventListener('resize', function(){
     clearTimeout(_tmAlinhar);
-    _tmAlinhar = setTimeout(agendarAlinhamento, 120);
+    _tmAlinhar = setTimeout(function(){ sincronizarBotoesGaveta(); agendarAlinhamento(); }, 120);
   });
 }
 
@@ -2614,6 +2614,14 @@ function sincronizarBotoesGaveta(){
     var bt  = document.getElementById(BOTAO_DA_GAVETA[g]);
     if(bt) bt.setAttribute('aria-expanded', (gav && gav.classList.contains('aberta')) ? 'true' : 'false');
   }
+  // em tela larga o botão de controles descreve a coluna fixa, não a gaveta
+  var bc = document.getElementById('btnControles');
+  if(bc && ehTelaLarga()){
+    bc.setAttribute('aria-expanded', document.body.classList.contains('painel-recolhido') ? 'false' : 'true');
+    bc.setAttribute('title', document.body.classList.contains('painel-recolhido') ? 'Mostrar controles' : 'Recolher controles');
+  } else if(bc){
+    bc.setAttribute('title', 'Controles');
+  }
 }
 
 function abrirGaveta(id){
@@ -2630,6 +2638,22 @@ function abrirGaveta(id){
   el.setAttribute('aria-hidden','false');
   document.getElementById('sobreposicao').classList.add('aberta');
   sincronizarBotoesGaveta();
+}
+
+function ehTelaLarga(){
+  return !!(window.matchMedia && window.matchMedia('(min-width:1024px)').matches);
+}
+
+/* Em tela larga o botão recolhe a coluna fixa; em tela estreita abre a gaveta. */
+function alternarPainelControles(){
+  if(ehTelaLarga()){
+    document.body.classList.toggle('painel-recolhido');
+    fecharGavetas();
+    sincronizarBotoesGaveta();
+    agendarAlinhamento();
+  } else {
+    alternarGaveta('gavetaControles');
+  }
 }
 
 /* O mesmo botão abre e fecha. */
@@ -2662,7 +2686,8 @@ function fecharGavetas(){
   document.getElementById('btnGlossario').onclick     = function(){ alternarGaveta('gavetaGlossario'); };
   document.getElementById('fecharGlossario').onclick  = fecharGavetas;
   document.getElementById('sobreposicao').onclick     = fecharGavetas;
-  document.getElementById('btnControles').onclick     = function(){ alternarGaveta('gavetaControles'); };
+  document.getElementById('btnControles').onclick     = alternarPainelControles;
+  sincronizarBotoesGaveta();
   document.getElementById('btnSalvar').onclick        = abrirModalSalvar;
   document.getElementById('cancelarSalvar').onclick   = fecharModalSalvar;
   document.getElementById('confirmarSalvar').onclick  = salvarCenario;
