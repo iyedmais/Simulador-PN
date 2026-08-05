@@ -82,7 +82,27 @@ aside .cartao{padding:14px; margin-bottom:12px;}
 .ctl-topo{display:flex; align-items:baseline; gap:6px; margin-bottom:6px;}
 .ctl-rot{font-size:13px; font-weight:500; flex:1; min-width:0;}
 .ctl-val{font-size:13px; font-weight:700; color:var(--cor-vertical, var(--primaria)); white-space:nowrap;}
-.ctl input[type=range]{width:100%; accent-color:var(--cor-vertical, var(--acento)); margin:0; height:20px;}
+.ctl input[type=range]{
+  -webkit-appearance:none; appearance:none; width:100%; height:20px; margin:0;
+  background:transparent; cursor:pointer;
+}
+.ctl input[type=range]::-webkit-slider-runnable-track{
+  height:6px; border-radius:99px;
+  background:linear-gradient(to right, var(--cor-vertical, var(--acento)) 0 var(--preenchido,0%), #DCE3E2 var(--preenchido,0%) 100%);
+}
+.ctl input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none; margin-top:-5px;
+  width:16px; height:16px; border-radius:50%;
+  background:var(--cor-vertical, var(--acento)); border:2px solid #fff;
+  box-shadow:0 0 0 1px rgba(0,0,0,.14);
+}
+.ctl input[type=range]::-moz-range-track{ height:6px; border-radius:99px; background:#DCE3E2; }
+.ctl input[type=range]::-moz-range-progress{ height:6px; border-radius:99px; background:var(--cor-vertical, var(--acento)); }
+.ctl input[type=range]::-moz-range-thumb{
+  width:16px; height:16px; border-radius:50%; border:2px solid #fff;
+  background:var(--cor-vertical, var(--acento)); box-shadow:0 0 0 1px rgba(0,0,0,.14);
+}
+.ctl input[type=range]:focus-visible{ outline:2px solid var(--cor-vertical, var(--acento)); outline-offset:3px; }
 .ctl-lim{display:flex; justify-content:space-between; font-size:10.5px; color:#8A9392; margin-top:1px;}
 .ctl-num{
   width:100%; border:1px solid var(--borda); border-radius:6px; padding:5px 8px;
@@ -303,7 +323,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-20</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-21</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -404,6 +424,7 @@ function estadoPadrao(){
   return {
     modo:'apresentacao',
     // COMEX
+    mpeOn:true, medOn:true,
     clientesMPE5:4000, tkMPE5:650, dedupOn:false, universoMpeUnico:33600, capturaMpeIn:0.6894,
     clientesMed5:600, tkMed5:1050, takeComex:0.0145,
     carteiraMed:4200, capturaMedIn:0.25, takeMed:0.0120,
@@ -472,10 +493,10 @@ function calcular(){
   for(i=0;i<5;i++){
     var o = {};
     // 5.1 — curva por ano
-    o.clientesMPE = Math.round(S.clientesMPE5 * fCli[i]);
+    o.clientesMPE = S.mpeOn ? Math.round(S.clientesMPE5 * fCli[i]) : 0;
     o.tkMPE       = S.tkMPE5 * fTk[i];
     o.tpvComexMPE = o.clientesMPE * o.tkMPE / 1e6;              // R$ bi
-    o.clientesMed = Math.round(S.clientesMed5 * fCli[i]);
+    o.clientesMed = S.medOn ? Math.round(S.clientesMed5 * fCli[i]) : 0;
     o.tkMed       = S.tkMed5 * fTk[i];
     o.tpvComexMed = o.clientesMed * o.tkMed / 1e6;
     o.tpvComex    = o.tpvComexMPE + o.tpvComexMed;
@@ -966,8 +987,8 @@ var CONTROLES = [
 ];
 
 var GRUPOS = [
-  {id:'comex',    titulo:'COMEX — micro e pequenas', cor:CORES.comex,   fixo:true},
-  {id:'comexmed', titulo:'COMEX — médias empresas',  cor:CORES.comexMed, fixo:true},
+  {id:'comex',    titulo:'COMEX — micro e pequenas', cor:CORES.comex,    chave:'mpeOn'},
+  {id:'comexmed', titulo:'COMEX — médias empresas',  cor:CORES.comexMed, chave:'medOn'},
   {id:'rem',      titulo:'Remessas',                 cor:CORES.remessas, chave:'remessasOn'},
   {id:'cripto', titulo:'Cripto',           cor:CORES.cripto,   chave:'criptoOn'},
   {id:'lic',    titulo:'Licença própria',  cor:CORES.licenca,  chave:'licencaOn'},
@@ -1037,6 +1058,12 @@ function blocoCarteiraMpe(){
     '</div>';
 }
 
+function pctPreenchido(c){
+  var v = valorSlider(c);
+  var p = (c.max - c.min) > 0 ? (v - c.min) / (c.max - c.min) : 0;
+  return Math.max(0, Math.min(1, p)) * 100 + '%';
+}
+
 function corDoGrupo(gid){
   for(var i=0;i<GRUPOS.length;i++){ if(GRUPOS[i].id===gid) return GRUPOS[i].cor || ''; }
   return '';
@@ -1049,7 +1076,7 @@ function htmlControle(c, idx){
   return (c.antes ? (typeof c.antes==='function' ? c.antes() : c.antes) : '')+
     '<div class="ctl"'+estilo+' data-testid="ctl-'+c.k+'">'+
     '<div class="ctl-topo"><span class="ctl-rot">'+c.rot+'</span>'+ajuda+'<span class="ctl-val" data-testid="val-'+c.k+'">'+valorExibido(c)+'</span></div>'+
-    '<input type="range" min="'+c.min+'" max="'+c.max+'" step="'+c.passo+'" value="'+valorSlider(c)+'" data-ctl="'+c.k+'" data-testid="slider-'+c.k+'">'+
+    '<input type="range" min="'+c.min+'" max="'+c.max+'" step="'+c.passo+'" value="'+valorSlider(c)+'" style="--preenchido:'+pctPreenchido(c)+'" data-ctl="'+c.k+'" data-testid="slider-'+c.k+'">'+
     '<div class="ctl-lim"><span>'+(c.tipo==='pct'?nf(c.min,2)+'%':nf(c.min, c.tipo==='dec'?2:0)+(c.tipo==='mult'||c.tipo==='mult0'?'x':''))+'</span>'+
     '<span>'+(c.tipo==='pct'?nf(c.max,2)+'%':nf(c.max, c.tipo==='dec'?2:0)+(c.tipo==='mult'||c.tipo==='mult0'?'x':''))+'</span></div>'+
     (c.nota ? '<div class="aviso aviso-info" data-testid="nota-'+c.k+'">'+(typeof c.nota==='function'?c.nota():c.nota)+'</div>' : '')+
@@ -1085,6 +1112,12 @@ function renderControles(){
       }
       if(gr.id==='cripto' && !ligado){
         h += '<div class="aviso aviso-info">Fora do caso-base. Ligue para incluir a vertical no cenário.</div>';
+      }
+      if(gr.id==='comex' && !ligado){
+        h += '<div class="aviso aviso-ambar" data-testid="aviso-mpe-off">Vertical desligada. Micro e pequenas são o núcleo do plano — sem elas o cenário deixa de representar a tese.</div>';
+      }
+      if(gr.id==='comexmed' && !ligado){
+        h += '<div class="aviso aviso-info" data-testid="aviso-med-off">Vertical desligada: o cenário passa a considerar apenas micro e pequenas em COMEX.</div>';
       }
       if(gr.id==='rem' && !ligado){
         h += '<div class="aviso aviso-ambar" data-testid="aviso-remessas-off">Vertical desligada: o cenário passa a ser somente COMEX. Remessas respondem por parte relevante do TPV.</div>';
@@ -1482,7 +1515,7 @@ function cartaoMercado(o){
 
 function painelMercado(){
   var h = '<div class="grade3">';
-  h += cartaoMercado({
+  if(S.mpeOn) h += cartaoMercado({
     id:'comex-mpe', titulo:'COMEX — micro e pequenas', cor:CORES.comex,
     tam: fmtBi(MERCADO.tamComex.valor,0), fonteTam: MERCADO.tamComex.fonte,
     sam: fmtBi(MERCADO.samComexMpe.valor), fonteSam: MERCADO.samComexMpe.fonte,
@@ -1498,7 +1531,7 @@ function painelMercado(){
            '<div class="metrica-val">'+fmtPct(S.takeComex,2)+'</div>'+
            '<div class="metrica-sub">Médias: '+fmtPct(S.takeMed,2)+' · receita das MPEs no Ano 5: '+fmtMi(M.a5.receitaComexMPE)+'</div></div>'
   });
-  h += cartaoMercado({
+  if(S.medOn) h += cartaoMercado({
     id:'comex-med', titulo:'COMEX — médias empresas', cor:CORES.comexMed,
     tam: fmtBi(MERCADO.tamComex.valor,0), fonteTam: MERCADO.tamComex.fonte,
     sam: fmtBi(MERCADO.samComexMedias.valor,1), fonteSam: MERCADO.samComexMedias.fonte,
@@ -1896,6 +1929,7 @@ function assinaturaAvisos(){
 }
 
 function atualizarLeve(c, el){
+  el.style.setProperty('--preenchido', pctPreenchido(c));
   M = calcular();
   var alvos = document.querySelectorAll('[data-testid="val-'+c.k+'"]');
   for(var i=0;i<alvos.length;i++) alvos[i].textContent = valorExibido(c);
