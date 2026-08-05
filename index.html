@@ -81,8 +81,8 @@ aside .cartao{padding:14px; margin-bottom:12px;}
 .ctl:last-child{margin-bottom:0;}
 .ctl-topo{display:flex; align-items:baseline; gap:6px; margin-bottom:6px;}
 .ctl-rot{font-size:13px; font-weight:500; flex:1; min-width:0;}
-.ctl-val{font-size:13px; font-weight:700; color:var(--primaria); white-space:nowrap;}
-.ctl input[type=range]{width:100%; accent-color:var(--acento); margin:0; height:20px;}
+.ctl-val{font-size:13px; font-weight:700; color:var(--cor-vertical, var(--primaria)); white-space:nowrap;}
+.ctl input[type=range]{width:100%; accent-color:var(--cor-vertical, var(--acento)); margin:0; height:20px;}
 .ctl-lim{display:flex; justify-content:space-between; font-size:10.5px; color:#8A9392; margin-top:1px;}
 .ctl-num{
   width:100%; border:1px solid var(--borda); border-radius:6px; padding:5px 8px;
@@ -94,7 +94,7 @@ aside .cartao{padding:14px; margin-bottom:12px;}
 .chave input{position:absolute; opacity:0; width:0; height:0;}
 .chave .trilho{width:40px; height:22px; border-radius:99px; background:#C8CFCE; position:relative; transition:background .15s; flex:0 0 40px;}
 .chave .trilho::after{content:""; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#fff; transition:left .15s;}
-.chave input:checked + .trilho{background:var(--acento);}
+.chave input:checked + .trilho{background:var(--cor-vertical, var(--acento));}
 .chave input:checked + .trilho::after{left:21px;}
 .chave input:disabled + .trilho{opacity:.45; cursor:not-allowed;}
 .chave-rot{font-size:13px; font-weight:600;}
@@ -303,7 +303,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-19</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-20</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -1030,17 +1030,24 @@ function htmlAjuda(ref){ return '<button class="ajuda" data-tip="'+ref+'" aria-l
 
 /* Carteira da MPE — derivada do mercado, exibida com o mesmo rótulo das médias. */
 function blocoCarteiraMpe(){
-  return '<div class="ctl" data-testid="carteira-mpe-derivada">'+
+  return '<div class="ctl" style="--cor-vertical:'+CORES.comex+'" data-testid="carteira-mpe-derivada">'+
     '<div class="ctl-topo"><span class="ctl-rot">Carteira COMEX da empresa (R$ mil/ano)</span>'+
     htmlAjuda('carteiraMpe')+'<span class="ctl-val" data-testid="val-carteiraMpe">'+fmtMil(carteiraMpe())+'</span></div>'+
     '<div style="font-size:11.5px;color:#8A9392;margin-top:2px">'+fmtBi(MERCADO.samComexMpe.valor)+' ÷ '+fmtInt(universoMpeEfetivo())+' empresas — derivada do MDIC, não editável</div>'+
     '</div>';
 }
 
+function corDoGrupo(gid){
+  for(var i=0;i<GRUPOS.length;i++){ if(GRUPOS[i].id===gid) return GRUPOS[i].cor || ''; }
+  return '';
+}
+
 function htmlControle(c, idx){
   var ajuda = c.tipRef ? htmlAjuda(c.tipRef) : (c.tip ? '<button class="ajuda" data-tiptxt="'+idx+'" aria-label="Ajuda">?</button>' : '');
+  var cor = corDoGrupo(c.g);
+  var estilo = cor ? ' style="--cor-vertical:'+cor+'"' : '';
   return (c.antes ? (typeof c.antes==='function' ? c.antes() : c.antes) : '')+
-    '<div class="ctl" data-testid="ctl-'+c.k+'">'+
+    '<div class="ctl"'+estilo+' data-testid="ctl-'+c.k+'">'+
     '<div class="ctl-topo"><span class="ctl-rot">'+c.rot+'</span>'+ajuda+'<span class="ctl-val" data-testid="val-'+c.k+'">'+valorExibido(c)+'</span></div>'+
     '<input type="range" min="'+c.min+'" max="'+c.max+'" step="'+c.passo+'" value="'+valorSlider(c)+'" data-ctl="'+c.k+'" data-testid="slider-'+c.k+'">'+
     '<div class="ctl-lim"><span>'+(c.tipo==='pct'?nf(c.min,2)+'%':nf(c.min, c.tipo==='dec'?2:0)+(c.tipo==='mult'||c.tipo==='mult0'?'x':''))+'</span>'+
@@ -1068,7 +1075,7 @@ function renderControles(){
          (gr.fixo?'<span class="pill">sempre ligado</span>':'')+'</div>';
     if(gr.chave){
       var desabilita = (gr.id==='lic' && !S.criptoOn) ? ' disabled' : '';
-      h += '<label class="chave" style="margin-bottom:'+(ligado?'14px':'0')+'">'+
+      h += '<label class="chave" style="margin-bottom:'+(ligado?'14px':'0')+(gr.cor?';--cor-vertical:'+gr.cor:'')+'">'+
            '<input type="checkbox" data-chave="'+gr.chave+'" data-testid="chave-'+gr.id+'"'+(ligado?' checked':'')+desabilita+'>'+
            '<span class="trilho"></span><span class="chave-rot">'+(ligado?'Ligada':'Desligada')+'</span></label>';
       if(gr.id==='lic' && !S.criptoOn){
@@ -1089,7 +1096,7 @@ function renderControles(){
         // no bloco de MPE, a chave de dedup e a carteira derivada entram logo após o nº de clientes
         if(gr.id==='comex' && c.k==='clientesMPE5'){
           if(S.modo==='avancado'){
-            h += '<label class="chave" style="margin:14px 0 0"><input type="checkbox" data-chave="dedupOn" data-testid="chave-dedup"'+(S.dedupOn?' checked':'')+'>'+
+            h += '<label class="chave" style="margin:14px 0 0;--cor-vertical:'+CORES.comex+'"><input type="checkbox" data-chave="dedupOn" data-testid="chave-dedup"'+(S.dedupOn?' checked':'')+'>'+
                  '<span class="trilho"></span><span class="chave-rot">Deduplicação do universo '+htmlAjuda('universoUnico')+'</span></label>';
             h += S.dedupOn
               ? '<div class="aviso aviso-ambar" data-testid="aviso-com-dedup">Carteira e penetração passam a usar '+fmtInt(S.universoMpeUnico)+' empresas únicas. Sobre as '+fmtInt(MERCADO.universoMpe.valor)+' brutas a penetração seria '+fmtPct(S.clientesMPE5/MERCADO.universoMpe.valor,2)+'.</div>'
