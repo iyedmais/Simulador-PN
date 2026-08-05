@@ -182,7 +182,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
 .sem-verde{background:#E6F4EC; color:var(--verde);}
 .sem-ambar{background:#FDF6E7; color:var(--ambar);}
 .sem-vermelho{background:#FBEAE9; color:var(--vermelho);}
-.metrica{padding:12px 0; border-bottom:1px solid var(--borda);}
+.metrica{padding:12px 0; border-bottom:1px solid var(--borda); display:flex; flex-direction:column; align-items:stretch;}
 .metrica:last-child{border-bottom:0;}
 .metrica-rot{display:flex; align-items:center; gap:6px; font-size:11.5px; color:#6B7574; font-weight:600; text-transform:uppercase; letter-spacing:.3px;}
 .metrica-val{font-size:20px; font-weight:700; color:var(--primaria); margin-top:3px;}
@@ -339,7 +339,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-25</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-26</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -881,7 +881,9 @@ var TIPS = {
 
   sam: function(){ return '<b>SAM</b><br><span style="font-size:11px;color:#9AAAAB">Serviceable Available Market — mercado atendível</span><br><br>'+
     'A parte desse mercado que a empresa consegue atender, considerando o tipo de cliente e o produto que ela oferece. É sempre menor que o total.<br><br>'+
-    'COMEX, micro e pequenas empresas: '+fmtBi(MERCADO.samComexMpe.valor)+'<br>COMEX, médias empresas: '+fmtBi(MERCADO.samComexMedias.valor,1)+'<br>Cripto, segmento de stablecoins: '+fmtBi(MERCADO.samCripto.valor,0)+
+    'COMEX, micro e pequenas empresas: '+fmtBi(MERCADO.samComexMpe.valor)+'<br>COMEX, médias empresas: '+fmtBi(MERCADO.samComexMedias.valor,1)+
+    '<br><b>COMEX consolidado: '+fmtBi(MERCADO.samComexMpe.valor+MERCADO.samComexMedias.valor,1)+'</b>'+
+    (S.criptoOn ? '<br><br>Cripto, segmento de stablecoins: '+fmtBi(MERCADO.samCripto.valor,0)+' — vertical separada, não entra na soma de COMEX' : '')+
     '<span class="tip-fonte">Fontes: '+MERCADO.samComexMpe.fonte+' · '+MERCADO.samComexMedias.fonte+'</span>'; },
 
   som: function(){ return '<b>SOM</b><br><span style="font-size:11px;color:#9AAAAB">Serviceable Obtainable Market — mercado capturável</span><br><br>'+
@@ -1882,6 +1884,28 @@ function painelCenarios(){
                '<button class="btn btn-pequeno" data-acao="excluirCenario" data-idx="'+i+'">Excluir</button></div>';
       }).join('')+'</div></div>';
   return h;
+}
+
+/* As três colunas de mercado precisam ter as mesmas divisórias na mesma altura.
+   Cada linha é igualada à mais alta entre os cartões, para o olho comparar na horizontal. */
+function alinharMetricas(){
+  var cartoes = [];
+  ['comex-mpe','comex-med','comex-total'].forEach(function(id){
+    var c = document.querySelector('[data-testid="mercado-'+id+'"]');
+    if(c) cartoes.push(c);
+  });
+  if(cartoes.length < 2) return;
+
+  var linhas = cartoes.map(function(c){ return c.querySelectorAll(':scope > .metrica'); });
+  linhas.forEach(function(ms){ for(var i=0;i<ms.length;i++) ms[i].style.minHeight = ''; });
+
+  var maxLinhas = Math.max.apply(null, linhas.map(function(ms){ return ms.length; }));
+  for(var i=0;i<maxLinhas;i++){
+    var alturas = linhas.map(function(ms){ return ms[i] ? ms[i].getBoundingClientRect().height : 0; });
+    var maior = Math.max.apply(null, alturas);
+    if(!isFinite(maior) || maior <= 0) continue;
+    linhas.forEach(function(ms){ if(ms[i]) ms[i].style.minHeight = maior + 'px'; });
+  }
 }
 
 function renderPaineis(){
