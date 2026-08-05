@@ -333,7 +333,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-22</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-24</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -528,6 +528,7 @@ function calcular(){
     o.custoExecucao = o.custoFiat + o.custoCripto;
     o.tributos      = o.receitaBruta * S.aliquota;
     o.margemContrib = o.receitaBruta - o.custoExecucao - o.tributos;
+    o.takeEfetiva   = o.tpvTotal > 0 ? o.receitaBruta / (o.tpvTotal * 1000) : 0;
     o.opex          = opexBaseAno(i) * S.multOpex;
     o.totalClientes = o.clientesMPE + o.clientesMed + o.clientesRem;
     a.push(o);
@@ -587,6 +588,7 @@ function calcular(){
   m.acum = {};
   chaves.forEach(function(k){ m.acum[k] = a.reduce(function(s,o){ return s + o[k]; },0); });
   m.acum.margemEbitda = m.acum.receitaBruta > 0 ? m.acum.ebitda/m.acum.receitaBruta : 0;
+  m.acum.takeEfetiva  = m.acum.tpvTotal > 0 ? m.acum.receitaBruta/(m.acum.tpvTotal*1000) : 0;
 
   // 5.5 — mercado e penetração
   m.pen = {
@@ -910,6 +912,14 @@ var TIPS = {
     '<b>Captura de '+fmtPct(M.capturaMed,1)+' da carteira</b><br><br>'+
     'A empresa não troca de banco: a BROSBNK fica com uma parte do fluxo dela. Quanto maior o cliente, menor tende a ser essa fatia, porque ele tem mesa de câmbio, gerente dedicado e poder de negociação.<br><br>'+
     'A carteira também define o universo de médias: '+fmtBi(MERCADO.samComexMedias.valor,1)+' ÷ '+fmtMil(S.carteiraMed)+' = <b>'+fmtInt(M.universoMed)+' empresas</b>.'; },
+
+  takeEfetiva: function(){ return '<b>Take rate efetiva</b><br><br>'+
+    'O preço médio que a operação de fato pratica: toda a receita dividida por todo o volume. Não é uma tarifa cobrada de ninguém — é o resultado da mistura entre as verticais.'+
+    '<span class="tip-form">Ano 5: '+fmtMi(M.a5.receitaBruta)+' ÷ '+fmtBi(M.a5.tpvTotal)+' = '+fmtPct(M.a5.takeEfetiva,3)+'</span>'+
+    'Tarifas em vigor: COMEX micro e pequenas '+fmtPct(S.takeComex,2)+', médias '+fmtPct(S.takeMed,2)+
+    (S.remessasOn?', remessas '+fmtPct(S.takeRem,2):'')+
+    (S.criptoOn?', cripto '+fmtPct(S.takeCripto,2):'')+'.<br><br>'+
+    'Ela cai quando cresce o peso de verticais de tarifa menor. É o indicador que revela erosão de preço por mudança de mix, mesmo sem nenhuma tarifa ter sido reduzida.'; },
 
   takeMed: function(){ return '<b>Take rate — médias empresas</b><br><br>'+
     'A tarifa cobrada das médias empresas, separada da tarifa das MPEs.<br><br>'+
@@ -1462,6 +1472,9 @@ function painelPL(){
   h += linhaPL('Receita remessas','receitaRem');
   if(S.criptoOn) h += linhaPL('Receita cripto','receitaCripto');
   h += linhaPL('Receita bruta','receitaBruta',{destaque:true, tip:'receita'});
+  h += '<tr><td>Take rate efetiva '+htmlAjuda('takeEfetiva')+'</td>'+
+       M.ano.map(function(o){ return '<td>'+fmtPct(o.takeEfetiva,3)+'</td>'; }).join('')+
+       '<td>'+fmtPct(M.acum.takeEfetiva,3)+'</td></tr>';
 
   h += '<tr class="grupo"><td colspan="7">Custos diretos e impostos</td></tr>';
   h += linhaPL('Custo com provedores (fiat)','custoFiat',{tip:'custoExec'});
@@ -1539,7 +1552,7 @@ function painelMercado(){
            (S.dedupOn ? ' · carteira sobre '+fmtInt(universoMpeEfetivo())+' empresas únicas' : ' · carteira sobre a soma bruta')+'</div></div>'+
            '<div class="metrica" style="border-bottom:0"><div class="metrica-rot">Take rate aplicada '+htmlAjuda('take')+'</div>'+
            '<div class="metrica-val">'+fmtPct(S.takeComex,2)+'</div>'+
-           '<div class="metrica-sub">Médias: '+fmtPct(S.takeMed,2)+' · receita das MPEs no Ano 5: '+fmtMi(M.a5.receitaComexMPE)+'</div></div>'
+           '<div class="metrica-sub">Tarifa única do segmento · receita no Ano 5: '+fmtMi(M.a5.receitaComexMPE)+'</div></div>'
   });
   if(S.medOn) h += cartaoMercado({
     id:'comex-med', titulo:'COMEX — médias empresas', cor:CORES.comexMed,
@@ -1554,7 +1567,7 @@ function painelMercado(){
            '<div class="metrica-sub">'+fmtMil(S.tkMed5)+' de '+fmtMil(S.carteiraMed)+' movimentados por ano</div></div>'+
            '<div class="metrica" style="border-bottom:0"><div class="metrica-rot">Take rate aplicada '+htmlAjuda('takeMed')+'</div>'+
            '<div class="metrica-val">'+fmtPct(S.takeMed,2)+'</div>'+
-           '<div class="metrica-sub">MPE: '+fmtPct(S.takeComex,2)+' · receita das médias no Ano 5: '+fmtMi(M.a5.receitaComexMed)+'</div></div>'
+           '<div class="metrica-sub">Tarifa única do segmento · receita no Ano 5: '+fmtMi(M.a5.receitaComexMed)+'</div></div>'
   });
   if(S.mpeOn && S.medOn){
     var tSam  = MERCADO.samComexMpe.valor + MERCADO.samComexMedias.valor;
@@ -1577,9 +1590,12 @@ function painelMercado(){
       '<div class="metrica"><div class="metrica-rot">Penetração por número de empresas '+htmlAjuda('penetracao')+'</div>'+
       '<div class="metrica-val">'+fmtPct(tPenE,2)+'</div>'+
       '<div class="metrica-sub">'+fmtInt(tCli)+' de '+fmtInt(tUni)+' empresas</div></div>'+
+      '<div class="metrica"><div class="metrica-rot">Take rate efetiva '+htmlAjuda('takeEfetiva')+'</div>'+
+      '<div class="metrica-val" data-testid="take-efetiva-comex">'+fmtPct(tTake,3)+'</div>'+
+      '<div class="metrica-sub">'+fmtPct(S.takeComex,2)+' nas micro e pequenas · '+fmtPct(S.takeMed,2)+' nas médias · média ponderada pelo volume de cada segmento</div></div>'+
       '<div class="metrica"><div class="metrica-rot">Receita bruta no Ano 5</div>'+
       '<div class="metrica-val">'+fmtMi(tRec)+'</div>'+
-      '<div class="metrica-sub">take rate efetiva de '+fmtPct(tTake,2)+' — '+fmtPct(S.takeComex,2)+' nas micro e pequenas, '+fmtPct(S.takeMed,2)+' nas médias</div></div>'+
+      '<div class="metrica-sub">'+fmtMi(M.a5.receitaComexMPE)+' em micro e pequenas + '+fmtMi(M.a5.receitaComexMed)+' em médias</div></div>'+
       '<div class="metrica" style="border-bottom:0"><div class="metrica-rot">Participação de cada segmento no volume</div>'+
       barraEmpilhada([{rot:'Micro e pequenas', v:M.a5.tpvComexMPE, cor:CORES.comex},{rot:'Médias', v:M.a5.tpvComexMed, cor:CORES.comexMed}])+
       '<div class="metrica-sub" style="margin-top:6px">Micro e pequenas '+fmtPct(tSom>0?M.a5.tpvComexMPE/tSom:0,1)+' · médias '+fmtPct(tSom>0?M.a5.tpvComexMed/tSom:0,1)+'</div></div>'+
@@ -2188,10 +2204,10 @@ function exportarXlsx(){
   pl.push(['TPV remessas (R$ bi)'].concat(M.ano.map(function(o){return o.tpvRem;})).concat([M.acum.tpvRem]));
   pl.push(['TPV cripto (R$ bi)'].concat(M.ano.map(function(o){return o.tpvCripto;})).concat([M.acum.tpvCripto]));
   pl.push(['TPV total (R$ bi)'].concat(M.ano.map(function(o){return o.tpvTotal;})).concat([M.acum.tpvTotal]));
-  ['receitaComex','receitaRem','receitaCripto','receitaBruta','custoFiat','custoCripto','custoExecucao',
+  ['receitaComex','receitaRem','receitaCripto','receitaBruta','takeEfetiva','custoFiat','custoCripto','custoExecucao',
    'tributos','margemContrib','opex','gtm','ganhoLicenca','ebitda'].forEach(function(k){
     var nomes = {receitaComex:'Receita COMEX',receitaRem:'Receita remessas',receitaCripto:'Receita cripto',
-      receitaBruta:'Receita bruta',custoFiat:'Custo com provedores (fiat)',custoCripto:'Custo de liquidez cripto',
+      receitaBruta:'Receita bruta',takeEfetiva:'Take rate efetiva',custoFiat:'Custo com provedores (fiat)',custoCripto:'Custo de liquidez cripto',
       custoExecucao:'Custo de execução',tributos:'Provisão tributária',margemContrib:'Margem de contribuição',
       opex:'OPEX',gtm:'GTM',ganhoLicenca:'Ganho de licença própria',ebitda:'EBITDA'};
     pl.push(linha(nomes[k]+' (R$ mi)', k));
