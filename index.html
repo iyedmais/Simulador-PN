@@ -198,6 +198,16 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   position:fixed; bottom:0; left:0; right:0; z-index:55; background:var(--superficie);
   border-top:1px solid var(--borda); padding:8px 16px; font-size:11.5px; color:#6B7574; text-align:center;
 }
+.cartao-total{
+  background:linear-gradient(180deg,#F2F7FB 0%, var(--superficie) 62%);
+  border-color:#C3D6E6;
+}
+.cartao-total .cartao-titulo{color:#03518F;}
+.faixa-vertical-dupla{
+  display:inline-block; width:4px; height:14px; border-radius:2px; margin-right:8px;
+  background:linear-gradient(180deg,#03518F 0 50%, #4E8CC4 50% 100%);
+  vertical-align:-2px;
+}
 .faixa-compartilhado{background:#EDF4F5; border-bottom:1px solid #C6DDE0; color:var(--primaria); font-size:12.5px; padding:8px 16px; text-align:center; display:none;}
 .faixa-verificacao{font-size:12px; line-height:1.5;}
 .mono{font-variant-numeric:tabular-nums;}
@@ -323,7 +333,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-21</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-22</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -1546,6 +1556,36 @@ function painelMercado(){
            '<div class="metrica-val">'+fmtPct(S.takeMed,2)+'</div>'+
            '<div class="metrica-sub">MPE: '+fmtPct(S.takeComex,2)+' · receita das médias no Ano 5: '+fmtMi(M.a5.receitaComexMed)+'</div></div>'
   });
+  if(S.mpeOn && S.medOn){
+    var tSam  = MERCADO.samComexMpe.valor + MERCADO.samComexMedias.valor;
+    var tSom  = M.a5.tpvComexMPE + M.a5.tpvComexMed;
+    var tCli  = S.clientesMPE5 + S.clientesMed5;
+    var tUni  = universoMpeEfetivo() + M.universoMed;
+    var tRec  = M.a5.receitaComexMPE + M.a5.receitaComexMed;
+    var tPenV = tSam > 0 ? tSom / tSam : 0;
+    var tPenE = tUni > 0 ? tCli / tUni : 0;
+    var tTake = tSom > 0 ? tRec / (tSom * 1000) : 0;
+    h += '<div class="cartao cartao-total" data-testid="mercado-comex-total">'+
+      '<div class="cartao-titulo"><span class="faixa-vertical-dupla"></span>COMEX total <span class="pill">soma dos dois segmentos</span></div>'+
+      '<div class="metrica"><div class="metrica-rot">SAM consolidado '+htmlAjuda('sam')+'</div>'+
+      '<div class="metrica-val">'+fmtBi(tSam,1)+'</div>'+
+      '<div class="metrica-sub">'+fmtBi(MERCADO.samComexMpe.valor)+' em micro e pequenas + '+fmtBi(MERCADO.samComexMedias.valor,1)+' em médias</div></div>'+
+      '<div class="metrica"><div class="metrica-rot">SOM — projetado no Ano 5 '+htmlAjuda('som')+'</div>'+
+      '<div class="metrica-val">'+fmtBi(tSom)+'</div>'+
+      '<div class="metrica-sub">'+fmtBi(M.a5.tpvComexMPE)+' + '+fmtBi(M.a5.tpvComexMed)+'</div>'+
+      '<div class="metrica-sub" style="margin-top:8px">'+semaforo(tPenV)+'</div></div>'+
+      '<div class="metrica"><div class="metrica-rot">Penetração por número de empresas '+htmlAjuda('penetracao')+'</div>'+
+      '<div class="metrica-val">'+fmtPct(tPenE,2)+'</div>'+
+      '<div class="metrica-sub">'+fmtInt(tCli)+' de '+fmtInt(tUni)+' empresas</div></div>'+
+      '<div class="metrica"><div class="metrica-rot">Receita bruta no Ano 5</div>'+
+      '<div class="metrica-val">'+fmtMi(tRec)+'</div>'+
+      '<div class="metrica-sub">take rate efetiva de '+fmtPct(tTake,2)+' — '+fmtPct(S.takeComex,2)+' nas micro e pequenas, '+fmtPct(S.takeMed,2)+' nas médias</div></div>'+
+      '<div class="metrica" style="border-bottom:0"><div class="metrica-rot">Participação de cada segmento no volume</div>'+
+      barraEmpilhada([{rot:'Micro e pequenas', v:M.a5.tpvComexMPE, cor:CORES.comex},{rot:'Médias', v:M.a5.tpvComexMed, cor:CORES.comexMed}])+
+      '<div class="metrica-sub" style="margin-top:6px">Micro e pequenas '+fmtPct(tSom>0?M.a5.tpvComexMPE/tSom:0,1)+' · médias '+fmtPct(tSom>0?M.a5.tpvComexMed/tSom:0,1)+'</div></div>'+
+      '</div>';
+  }
+
   if(S.remessasOn) h += cartaoMercado({
     id:'remessas', titulo:'Remessas', cor:CORES.remessas,
     tam: fmtBi(MERCADO.tamRemessas.valor,0), fonteTam: MERCADO.tamRemessas.fonte,
