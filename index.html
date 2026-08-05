@@ -303,7 +303,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-17</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-19</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -375,7 +375,7 @@ var APORTE_SECUNDARIO_PADRAO =  5;   // R$ milhões
 function aporteP(){ return (S && isFinite(S.aporteP)) ? S.aporteP : APORTE_PRIMARIO_PADRAO; }
 function aporteS(){ return (S && isFinite(S.aporteS)) ? S.aporteS : APORTE_SECUNDARIO_PADRAO; }
 function aporteTotal(){ return aporteP() + aporteS(); }
-var CORES = { comex:'#03518F', remessas:'#009743', cripto:'#F7C500', licenca:'#E2231D' };
+var CORES = { comex:'#03518F', comexMed:'#4E8CC4', remessas:'#009743', cripto:'#F7C500', licenca:'#E2231D' };
 
 /* ---------- 2. Estado ---------- */
 
@@ -408,7 +408,7 @@ function estadoPadrao(){
     clientesMed5:600, tkMed5:1050, takeComex:0.0145,
     carteiraMed:4200, capturaMedIn:0.25, takeMed:0.0120,
     // Remessas
-    clientesRem5:4000, tkRem5:419, takeRem:0.0145,
+    remessasOn:true, clientesRem5:4000, tkRem5:419, takeRem:0.0145,
     // Cripto
     criptoOn:false, tpvCripto5:3.30, takeCripto:0.0045, custoLiqCripto:0.0010,
     // Licença própria
@@ -479,7 +479,7 @@ function calcular(){
     o.tkMed       = S.tkMed5 * fTk[i];
     o.tpvComexMed = o.clientesMed * o.tkMed / 1e6;
     o.tpvComex    = o.tpvComexMPE + o.tpvComexMed;
-    o.clientesRem = Math.round(S.clientesRem5 * fCli[i]);
+    o.clientesRem = S.remessasOn ? Math.round(S.clientesRem5 * fCli[i]) : 0;
     o.tkRem       = S.tkRem5 * fTk[i];
     o.tpvRem      = o.clientesRem * o.tkRem / 1e6;
     o.tpvCripto   = S.criptoOn ? S.tpvCripto5 * fCli[i] : 0;
@@ -967,8 +967,8 @@ var CONTROLES = [
 
 var GRUPOS = [
   {id:'comex',    titulo:'COMEX — micro e pequenas', cor:CORES.comex,   fixo:true},
-  {id:'comexmed', titulo:'COMEX — médias empresas',  cor:'#4E8CC4',     fixo:true},
-  {id:'rem',      titulo:'Remessas',                 cor:CORES.remessas, fixo:true},
+  {id:'comexmed', titulo:'COMEX — médias empresas',  cor:CORES.comexMed, fixo:true},
+  {id:'rem',      titulo:'Remessas',                 cor:CORES.remessas, chave:'remessasOn'},
   {id:'cripto', titulo:'Cripto',           cor:CORES.cripto,   chave:'criptoOn'},
   {id:'lic',    titulo:'Licença própria',  cor:CORES.licenca,  chave:'licencaOn'},
   {id:'custo',  titulo:'Custos e estrutura'},
@@ -1078,6 +1078,9 @@ function renderControles(){
       }
       if(gr.id==='cripto' && !ligado){
         h += '<div class="aviso aviso-info">Fora do caso-base. Ligue para incluir a vertical no cenário.</div>';
+      }
+      if(gr.id==='rem' && !ligado){
+        h += '<div class="aviso aviso-ambar" data-testid="aviso-remessas-off">Vertical desligada: o cenário passa a ser somente COMEX. Remessas respondem por parte relevante do TPV.</div>';
       }
     }
     if(ligado){
@@ -1489,7 +1492,7 @@ function painelMercado(){
            '<div class="metrica-sub">Médias: '+fmtPct(S.takeMed,2)+' · receita das MPEs no Ano 5: '+fmtMi(M.a5.receitaComexMPE)+'</div></div>'
   });
   h += cartaoMercado({
-    id:'comex-med', titulo:'COMEX — médias empresas', cor:CORES.comex,
+    id:'comex-med', titulo:'COMEX — médias empresas', cor:CORES.comexMed,
     tam: fmtBi(MERCADO.tamComex.valor,0), fonteTam: MERCADO.tamComex.fonte,
     sam: fmtBi(MERCADO.samComexMedias.valor,1), fonteSam: MERCADO.samComexMedias.fonte,
     som: fmtBi(M.a5.tpvComexMed), pen: M.pen.medias,
@@ -1503,7 +1506,7 @@ function painelMercado(){
            '<div class="metrica-val">'+fmtPct(S.takeMed,2)+'</div>'+
            '<div class="metrica-sub">MPE: '+fmtPct(S.takeComex,2)+' · receita das médias no Ano 5: '+fmtMi(M.a5.receitaComexMed)+'</div></div>'
   });
-  h += cartaoMercado({
+  if(S.remessasOn) h += cartaoMercado({
     id:'remessas', titulo:'Remessas', cor:CORES.remessas,
     tam: fmtBi(MERCADO.tamRemessas.valor,0), fonteTam: MERCADO.tamRemessas.fonte,
     sam: fmtBi(MERCADO.tamRemessasPjMin.valor,0)+' – '+fmtBi(MERCADO.tamRemessasPjMax.valor,0), fonteSam: 'Pessoa jurídica — '+MERCADO.tamRemessasPjMin.fonte,
@@ -1523,7 +1526,7 @@ function painelMercado(){
 
   var partes = [
     {rot:'COMEX micro e pequenas', v:M.a5.tpvComexMPE, cor:CORES.comex},
-    {rot:'COMEX médias',           v:M.a5.tpvComexMed, cor:'#4E8CC4'},
+    {rot:'COMEX médias',           v:M.a5.tpvComexMed, cor:CORES.comexMed},
     {rot:'Remessas',               v:M.a5.tpvRem,      cor:CORES.remessas},
     {rot:'Cripto',                 v:M.a5.tpvCripto,   cor:CORES.cripto}
   ].filter(function(p){ return p.v>0; });
@@ -1598,7 +1601,7 @@ function painelMercado(){
 function painelClientes(){
   var series = [
     {rot:'COMEX MPE', cor:CORES.comex,    v:M.ano.map(function(o){return o.clientesMPE;})},
-    {rot:'COMEX médias', cor:'#4E8CC4',   v:M.ano.map(function(o){return o.clientesMed;})},
+    {rot:'COMEX médias', cor:CORES.comexMed, v:M.ano.map(function(o){return o.clientesMed;})},
     {rot:'Remessas', cor:CORES.remessas,  v:M.ano.map(function(o){return o.clientesRem;})}
   ];
   var h = '<div class="grade2">';
