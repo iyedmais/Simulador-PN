@@ -303,7 +303,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-13</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-15</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -927,14 +927,15 @@ var TIPS = {
 
 var CONTROLES = [
   // grupo, chave, rótulo, min, max, passo, tipo, modo, tooltip
-  {g:'comex', k:'clientesMPE5', rot:'Clientes MPE no Ano 5',            min:1000, max:42022, passo:50,  tipo:'int', modo:'ambos',    tip:'Quantas micro e pequenas empresas — empresas de menor porte, na classificação das estatísticas oficiais de comércio exterior — estarão ativas na plataforma no quinto ano. Os anos anteriores são derivados da curva de entrada.'},
+  {g:'comex', k:'clientesMPE5', rot:'Clientes no Ano 5',                 min:1000, max:42022, passo:50,  tipo:'int', modo:'ambos',    tip:'Quantas micro e pequenas empresas — empresas de menor porte, na classificação das estatísticas oficiais de comércio exterior — estarão ativas na plataforma no quinto ano. Os anos anteriores são derivados da curva de entrada.'},
   {g:'comex', k:'universoMpeUnico', rot:'Empresas únicas no universo',  min:25000, max:41900, passo:100, tipo:'int', modo:'avancado', tipRef:'universoUnico', quando:function(){ return S.dedupOn; }},
-  {g:'comex', k:'capturaMpeIn', rot:'Captura da carteira',              min:5,    max:100,   passo:1,   tipo:'pct', modo:'ambos',    tipRef:'carteiraMpe', nota:function(){ return notaTicketMPE(); }},
+  {g:'comex', k:'capturaMpeIn', rot:'Captura da carteira',              min:5,    max:100,   passo:1,   tipo:'pct', modo:'ambos',    tipRef:'carteiraMpe', antes:function(){ return blocoCarteiraMpe(); }, nota:function(){ return notaTicketMPE(); }},
   {g:'comex', k:'takeComex',    rot:'Take rate cobrada',                min:0.80, max:2.00,  passo:0.01, tipo:'pct', modo:'ambos',   tipRef:'take'},
+
 
   {g:'comexmed', k:'clientesMed5', rot:'Clientes no Ano 5',             min:0,    max:24000, passo:10,  tipo:'int', modo:'avancado', tip:'Quantas empresas de médio porte estarão ativas no quinto ano. O volume por cliente é muito maior que o de uma MPE, mas a captura da carteira tende a ser menor, porque a empresa maior tem mesa de câmbio e poder de negociação.'},
   {g:'comexmed', k:'carteiraMed',  rot:'Carteira COMEX da empresa (R$ mil/ano)', min:500, max:12000, passo:100, tipo:'int', modo:'avancado', tipRef:'carteiraMed'},
-  {g:'comexmed', k:'capturaMedIn', rot:'Captura da carteira',           min:5,    max:100,   passo:1,   tipo:'pct', modo:'avancado', tipRef:'carteiraMed', nota:function(){ return 'Ticket que passa pela plataforma: <b>'+fmtMil(S.carteiraMed*S.capturaMedIn)+' por ano</b> — '+fmtPct(S.capturaMedIn,0)+' de '+fmtMil(S.carteiraMed)+'.'; }},
+  {g:'comexmed', k:'capturaMedIn', rot:'Captura da carteira',           min:5,    max:100,   passo:1,   tipo:'pct', modo:'avancado', tipRef:'carteiraMed', nota:function(){ return 'Ticket que passa pela plataforma: <b>'+fmtMil(S.carteiraMed*S.capturaMedIn)+' por ano</b> — '+fmtPct(S.capturaMedIn,0)+' da carteira de '+fmtMil(S.carteiraMed)+'.'; }},
   {g:'comexmed', k:'takeMed',      rot:'Take rate cobrada',             min:0.50, max:2.00,  passo:0.01, tipo:'pct', modo:'avancado', tipRef:'takeMed'},
 
   {g:'rem',   k:'clientesRem5', rot:'Clientes de remessas no Ano 5',    min:0,    max:10000, passo:50,  tipo:'int', modo:'ambos',    tip:'Quantos clientes usarão a plataforma para enviar e receber dinheiro do exterior fora das operações de comércio exterior.'},
@@ -1027,9 +1028,19 @@ function visivel(c){
 
 function htmlAjuda(ref){ return '<button class="ajuda" data-tip="'+ref+'" aria-label="Ajuda">?</button>'; }
 
+/* Carteira da MPE — derivada do mercado, exibida com o mesmo rótulo das médias. */
+function blocoCarteiraMpe(){
+  return '<div class="ctl" data-testid="carteira-mpe-derivada">'+
+    '<div class="ctl-topo"><span class="ctl-rot">Carteira COMEX da empresa (R$ mil/ano)</span>'+
+    htmlAjuda('carteiraMpe')+'<span class="ctl-val" data-testid="val-carteiraMpe">'+fmtMil(carteiraMpe())+'</span></div>'+
+    '<div style="font-size:11.5px;color:#8A9392;margin-top:2px">'+fmtBi(MERCADO.samComexMpe.valor)+' ÷ '+fmtInt(universoMpeEfetivo())+' empresas — derivada do MDIC, não editável</div>'+
+    '</div>';
+}
+
 function htmlControle(c, idx){
   var ajuda = c.tipRef ? htmlAjuda(c.tipRef) : (c.tip ? '<button class="ajuda" data-tiptxt="'+idx+'" aria-label="Ajuda">?</button>' : '');
-  return '<div class="ctl" data-testid="ctl-'+c.k+'">'+
+  return (c.antes ? (typeof c.antes==='function' ? c.antes() : c.antes) : '')+
+    '<div class="ctl" data-testid="ctl-'+c.k+'">'+
     '<div class="ctl-topo"><span class="ctl-rot">'+c.rot+'</span>'+ajuda+'<span class="ctl-val" data-testid="val-'+c.k+'">'+valorExibido(c)+'</span></div>'+
     '<input type="range" min="'+c.min+'" max="'+c.max+'" step="'+c.passo+'" value="'+valorSlider(c)+'" data-ctl="'+c.k+'" data-testid="slider-'+c.k+'">'+
     '<div class="ctl-lim"><span>'+(c.tipo==='pct'?nf(c.min,2)+'%':nf(c.min, c.tipo==='dec'?2:0)+(c.tipo==='mult'||c.tipo==='mult0'?'x':''))+'</span>'+
@@ -1070,19 +1081,21 @@ function renderControles(){
       }
     }
     if(ligado){
-      lista.forEach(function(c){ h += htmlControle(c, CONTROLES.indexOf(c)); });
+      lista.forEach(function(c){
+        h += htmlControle(c, CONTROLES.indexOf(c));
+        // no bloco de MPE, a chave de dedup e a carteira derivada entram logo após o nº de clientes
+        if(gr.id==='comex' && c.k==='clientesMPE5'){
+          if(S.modo==='avancado'){
+            h += '<label class="chave" style="margin:14px 0 0"><input type="checkbox" data-chave="dedupOn" data-testid="chave-dedup"'+(S.dedupOn?' checked':'')+'>'+
+                 '<span class="trilho"></span><span class="chave-rot">Deduplicação do universo '+htmlAjuda('universoUnico')+'</span></label>';
+          }
+        }
+      });
       if(gr.id==='comex' && S.clientesMPE5 > universoMpeEfetivo()){
         h += '<div class="aviso aviso-vermelho" data-testid="aviso-clientes-mpe">Mais clientes ('+fmtInt(S.clientesMPE5)+') do que empresas no universo considerado ('+fmtInt(universoMpeEfetivo())+').</div>';
       }
       if(gr.id==='comexmed' && M.universoMed > 0 && S.clientesMed5 > M.universoMed){
         h += '<div class="aviso aviso-vermelho" data-testid="aviso-clientes-med">Mais clientes ('+fmtInt(S.clientesMed5)+') do que empresas no universo implícito ('+fmtInt(M.universoMed)+').</div>';
-      }
-      if(gr.id==='comex' && S.modo==='avancado'){
-        h += '<label class="chave" style="margin-top:14px"><input type="checkbox" data-chave="dedupOn" data-testid="chave-dedup"'+(S.dedupOn?' checked':'')+'>'+
-             '<span class="trilho"></span><span class="chave-rot">Deduplicação do universo '+htmlAjuda('universoUnico')+'</span></label>';
-        h += S.dedupOn
-          ? '<div class="aviso aviso-info" data-testid="aviso-com-dedup">Carteira por empresa calculada sobre '+fmtInt(S.universoMpeUnico)+' empresas únicas. A penetração por número de empresas continua sobre as '+fmtInt(MERCADO.universoMpe.valor)+' brutas.</div>'
-          : '<div class="aviso aviso-info" data-testid="aviso-sem-dedup">Sem deduplicação: a carteira usa a soma bruta de '+fmtInt(MERCADO.universoMpe.valor)+' exportadoras e importadoras. Leitura mais conservadora da carteira e mais agressiva da captura.</div>';
       }
       if(gr.id==='comexmed' && S.tkMed5 > S.carteiraMed){
         h += '<div class="aviso aviso-vermelho" data-testid="aviso-captura-media">O ticket capturado é maior que a carteira declarada da média empresa — captura acima de 100%.</div>';
@@ -1543,12 +1556,12 @@ function painelMercado(){
         fmtInt(uniMpe) + (S.dedupOn ? ' <span style="opacity:.6">únicas</span>' : ' <span style="opacity:.6">brutas</span>'),
         fmtInt(uniMed) + ' <span style="opacity:.6">implícito</span>',
         fmtInt(uniMpe + uniMed));
-  h += linhaCons('Carteira COMEX por empresa', fmtMil(carMpe), fmtMil(carMed), null, 'carteiraMpe');
+  h += linhaCons('Carteira COMEX da empresa', fmtMil(carMpe), fmtMil(carMed), null, 'carteiraMpe');
 
   h += '<tr class="grupo"><td colspan="4">Plano no Ano 5</td></tr>';
   h += linhaCons('Clientes', fmtInt(S.clientesMPE5), fmtInt(S.clientesMed5), fmtInt(S.clientesMPE5 + S.clientesMed5));
-  h += linhaCons('Ticket capturado por cliente', fmtMil(S.tkMPE5), fmtMil(S.tkMed5), null);
-  h += linhaCons('Captura da carteira do cliente',
+  h += linhaCons('Ticket que passa pela plataforma', fmtMil(S.tkMPE5), fmtMil(S.tkMed5), null);
+  h += linhaCons('Captura da carteira',
         '<b>'+fmtPct(S.tkMPE5/carMpe,1)+'</b>', '<b>'+fmtPct(M.capturaMed,1)+'</b>', null);
   h += linhaCons('SOM — volume projetado', fmtBi(somMpe), fmtBi(somMed), fmtBi(somMpe+somMed));
   h += linhaCons('Take rate aplicada', fmtPct(S.takeComex,2), fmtPct(S.takeMed,2),
@@ -1565,15 +1578,10 @@ function painelMercado(){
        '<td>'+fmtPct(somMpe/samMpe,2)+'</td>'+
        '<td>'+fmtPct(somMed/samMed,2)+'</td>'+
        '<td>'+fmtPct((somMpe+somMed)/(samMpe+samMed),2)+'</td></tr>';
-  h += linhaCons('Diferença entre as duas medidas',
-        nf((S.clientesMPE5/uniMpe - somMpe/samMpe)*100,2)+' p.p.',
-        nf(((uniMed>0?S.clientesMed5/uniMed:0) - somMed/samMed)*100,2)+' p.p.',
-        nf(((S.clientesMPE5+S.clientesMed5)/(uniMpe+uniMed) - (somMpe+somMed)/(samMpe+samMed))*100,2)+' p.p.');
-
   h += '</tbody></table></div>';
   h += '<div style="font-size:12.5px;color:#6B7574;line-height:1.55;margin-top:12px">'+
-       'A penetração por empresas é sempre maior que a por valor. A diferença é a <b>captura parcial</b>: o cliente não troca de banco, a BROSBNK fica com uma fatia do fluxo dele. '+
-       'Quanto maior essa diferença, menos o plano depende de conquistar o cliente por inteiro.</div>';
+       'A penetração por empresas é sempre maior que a por valor, porque a BROSBNK fica com uma parte do fluxo de cada cliente e não com o total. '+
+       'A relação é direta: <b>penetração por valor = penetração por empresas × captura da carteira</b>.</div>';
   if(S.dedupOn){
     h += '<div class="aviso aviso-ambar" data-testid="aviso-base-penetracao">A penetração por empresas acima usa a base deduplicada de '+fmtInt(uniMpe)+' empresas — a mesma que define a carteira. '+
          'Sobre as '+fmtInt(MERCADO.universoMpe.valor)+' brutas seria '+fmtPct(S.clientesMPE5/MERCADO.universoMpe.valor,2)+'. '+
