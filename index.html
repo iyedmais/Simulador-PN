@@ -198,6 +198,12 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   position:fixed; bottom:0; left:0; right:0; z-index:55; background:var(--superficie);
   border-top:1px solid var(--borda); padding:8px 16px; font-size:11.5px; color:#6B7574; text-align:center;
 }
+.faixa-tam{
+  background:linear-gradient(180deg,#F2F7FB 0%, var(--superficie) 100%);
+  border:1px solid #C3D6E6; border-radius:12px; padding:14px 16px; margin-bottom:16px; text-align:center;
+}
+.faixa-tam .metrica-rot{justify-content:center;}
+.faixa-tam .metrica-val{font-size:26px; color:#03518F;}
 .cartao-total{
   background:linear-gradient(180deg,#F2F7FB 0%, var(--superficie) 62%);
   border-color:#C3D6E6;
@@ -333,7 +339,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-24</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-25</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -1529,7 +1535,7 @@ function painelPL(){
 function cartaoMercado(o){
   return '<div class="cartao" data-testid="mercado-'+o.id+'">'+
     '<div class="cartao-titulo"><span class="faixa-vertical" style="background:'+o.cor+'"></span>'+o.titulo+'</div>'+
-    '<div class="metrica"><div class="metrica-rot">TAM '+htmlAjuda('tam')+'</div><div class="metrica-val">'+o.tam+'</div><div class="metrica-sub">'+o.fonteTam+'</div></div>'+
+    (o.semTam ? '' : '<div class="metrica"><div class="metrica-rot">TAM '+htmlAjuda('tam')+'</div><div class="metrica-val">'+o.tam+'</div><div class="metrica-sub">'+o.fonteTam+'</div></div>')+
     (o.sam ? '<div class="metrica"><div class="metrica-rot">SAM '+htmlAjuda('sam')+'</div><div class="metrica-val">'+o.sam+'</div><div class="metrica-sub">'+o.fonteSam+'</div></div>' : '')+
     '<div class="metrica"><div class="metrica-rot">SOM — projetado no Ano 5 '+htmlAjuda('som')+'</div><div class="metrica-val">'+o.som+'</div>'+
     '<div class="metrica-sub" style="margin-top:8px">'+semaforo(o.pen)+'</div></div>'+
@@ -1537,9 +1543,19 @@ function cartaoMercado(o){
 }
 
 function painelMercado(){
-  var h = '<div class="grade3">';
+  var h = '';
+  var tamUnificado = S.mpeOn && S.medOn;   // mesmo mercado nos dois segmentos: TAM sai dos cartões
+  if(tamUnificado){
+    h += '<div class="faixa-tam" data-testid="faixa-tam">'+
+         '<div class="metrica" style="border-bottom:0;padding:0">'+
+         '<div class="metrica-rot" style="display:flex;align-items:center;gap:6px;justify-content:center">TAM — comércio exterior brasileiro '+htmlAjuda('tam')+'</div>'+
+         '<div class="metrica-val">'+fmtBi(MERCADO.tamComex.valor,0)+'</div>'+
+         '<div class="metrica-sub">'+MERCADO.tamComex.fonte+' · mercado único dos dois segmentos, não é a soma deles</div>'+
+         '</div></div>';
+  }
+  h += '<div class="grade3">';
   if(S.mpeOn) h += cartaoMercado({
-    id:'comex-mpe', titulo:'COMEX — micro e pequenas', cor:CORES.comex,
+    id:'comex-mpe', titulo:'COMEX — micro e pequenas', cor:CORES.comex, semTam:tamUnificado,
     tam: fmtBi(MERCADO.tamComex.valor,0), fonteTam: MERCADO.tamComex.fonte,
     sam: fmtBi(MERCADO.samComexMpe.valor), fonteSam: MERCADO.samComexMpe.fonte,
     som: fmtBi(M.a5.tpvComexMPE), pen: M.pen.comexValor,
@@ -1550,12 +1566,15 @@ function painelMercado(){
            '<div class="metrica-val" data-testid="captura-mpe">'+fmtPct(S.capturaMpeIn,1)+'</div>'+
            '<div class="metrica-sub">'+fmtMil(S.tkMPE5)+' de '+fmtMil(carteiraMpe())+' movimentados por ano'+
            (S.dedupOn ? ' · carteira sobre '+fmtInt(universoMpeEfetivo())+' empresas únicas' : ' · carteira sobre a soma bruta')+'</div></div>'+
-           '<div class="metrica" style="border-bottom:0"><div class="metrica-rot">Take rate aplicada '+htmlAjuda('take')+'</div>'+
+           '<div class="metrica"><div class="metrica-rot">Take rate aplicada '+htmlAjuda('take')+'</div>'+
            '<div class="metrica-val">'+fmtPct(S.takeComex,2)+'</div>'+
-           '<div class="metrica-sub">Tarifa única do segmento · receita no Ano 5: '+fmtMi(M.a5.receitaComexMPE)+'</div></div>'
+           '<div class="metrica-sub">Tarifa única do segmento</div></div>'+
+           '<div class="metrica" style="border-bottom:0"><div class="metrica-rot">Receita bruta no Ano 5</div>'+
+           '<div class="metrica-val">'+fmtMi(M.a5.receitaComexMPE)+'</div>'+
+           '<div class="metrica-sub">'+fmtBi(M.a5.tpvComexMPE)+' × '+fmtPct(S.takeComex,2)+'</div></div>'
   });
   if(S.medOn) h += cartaoMercado({
-    id:'comex-med', titulo:'COMEX — médias empresas', cor:CORES.comexMed,
+    id:'comex-med', titulo:'COMEX — médias empresas', cor:CORES.comexMed, semTam:tamUnificado,
     tam: fmtBi(MERCADO.tamComex.valor,0), fonteTam: MERCADO.tamComex.fonte,
     sam: fmtBi(MERCADO.samComexMedias.valor,1), fonteSam: MERCADO.samComexMedias.fonte,
     som: fmtBi(M.a5.tpvComexMed), pen: M.pen.medias,
@@ -1565,9 +1584,12 @@ function painelMercado(){
            '<div class="metrica"><div class="metrica-rot">Captura da carteira do cliente</div>'+
            '<div class="metrica-val">'+fmtPct(M.capturaMed,1)+'</div>'+
            '<div class="metrica-sub">'+fmtMil(S.tkMed5)+' de '+fmtMil(S.carteiraMed)+' movimentados por ano</div></div>'+
-           '<div class="metrica" style="border-bottom:0"><div class="metrica-rot">Take rate aplicada '+htmlAjuda('takeMed')+'</div>'+
+           '<div class="metrica"><div class="metrica-rot">Take rate aplicada '+htmlAjuda('takeMed')+'</div>'+
            '<div class="metrica-val">'+fmtPct(S.takeMed,2)+'</div>'+
-           '<div class="metrica-sub">Tarifa única do segmento · receita no Ano 5: '+fmtMi(M.a5.receitaComexMed)+'</div></div>'
+           '<div class="metrica-sub">Tarifa única do segmento</div></div>'+
+           '<div class="metrica" style="border-bottom:0"><div class="metrica-rot">Receita bruta no Ano 5</div>'+
+           '<div class="metrica-val">'+fmtMi(M.a5.receitaComexMed)+'</div>'+
+           '<div class="metrica-sub">'+fmtBi(M.a5.tpvComexMed)+' × '+fmtPct(S.takeMed,2)+'</div></div>'
   });
   if(S.mpeOn && S.medOn){
     var tSam  = MERCADO.samComexMpe.valor + MERCADO.samComexMedias.valor;
@@ -1578,6 +1600,7 @@ function painelMercado(){
     var tPenV = tSam > 0 ? tSom / tSam : 0;
     var tPenE = tUni > 0 ? tCli / tUni : 0;
     var tTake = tSom > 0 ? tRec / (tSom * 1000) : 0;
+    var tCart = S.clientesMPE5 * carteiraMpe() + S.clientesMed5 * S.carteiraMed;   // R$ mil
     h += '<div class="cartao cartao-total" data-testid="mercado-comex-total">'+
       '<div class="cartao-titulo"><span class="faixa-vertical-dupla"></span>COMEX total <span class="pill">soma dos dois segmentos</span></div>'+
       '<div class="metrica"><div class="metrica-rot">SAM consolidado '+htmlAjuda('sam')+'</div>'+
@@ -1590,6 +1613,9 @@ function painelMercado(){
       '<div class="metrica"><div class="metrica-rot">Penetração por número de empresas '+htmlAjuda('penetracao')+'</div>'+
       '<div class="metrica-val">'+fmtPct(tPenE,2)+'</div>'+
       '<div class="metrica-sub">'+fmtInt(tCli)+' de '+fmtInt(tUni)+' empresas</div></div>'+
+      '<div class="metrica"><div class="metrica-rot">Captura da carteira do cliente</div>'+
+      '<div class="metrica-val">'+fmtPct(tCart>0?tSom*1e6/tCart:0,1)+'</div>'+
+      '<div class="metrica-sub">média ponderada · '+fmtPct(S.tkMPE5/carteiraMpe(),1)+' nas micro e pequenas · '+fmtPct(M.capturaMed,1)+' nas médias</div></div>'+
       '<div class="metrica"><div class="metrica-rot">Take rate efetiva '+htmlAjuda('takeEfetiva')+'</div>'+
       '<div class="metrica-val" data-testid="take-efetiva-comex">'+fmtPct(tTake,3)+'</div>'+
       '<div class="metrica-sub">'+fmtPct(S.takeComex,2)+' nas micro e pequenas · '+fmtPct(S.takeMed,2)+' nas médias · média ponderada pelo volume de cada segmento</div></div>'+
