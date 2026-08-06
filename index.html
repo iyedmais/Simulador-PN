@@ -366,7 +366,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.04-35</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.05-2</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -433,6 +433,13 @@ var MERCADO = {
 
 /* Aporte da rodada. Editáveis no modo Avançado (S.aporteP e S.aporteS).
    As funções abaixo são a única forma de ler esses valores no resto do código. */
+/* Frete e seguro internacionais acompanham toda operação de comércio exterior.
+   Premissa fixa e aritmética: 7,0% de frete + 0,5% de seguro sobre o TPV de COMEX.
+   Não há base de clientes própria — é o mesmo importador pagando o frete. */
+var FRETE_PCT  = 0.070;
+var SEGURO_PCT = 0.005;
+function pctFreteSeguro(){ return FRETE_PCT + SEGURO_PCT; }
+
 var APORTE_PRIMARIO_PADRAO   = 12;   // R$ milhões
 var APORTE_SECUNDARIO_PADRAO =  5;   // R$ milhões
 function aporteP(){ return (S && isFinite(S.aporteP)) ? S.aporteP : APORTE_PRIMARIO_PADRAO; }
@@ -472,13 +479,13 @@ function estadoPadrao(){
     clientesMed5:600, tkMed5:1050, takeComex:0.0145,
     carteiraMed:4200, capturaMedIn:0.25, takeMed:0.0120,
     // Remessas
-    remessasOn:true, clientesRem5:4000, tkRem5:419, takeRem:0.0145,
+    remessasOn:true, capturaRem:0.50, takeRem:0.0145,
     // Cripto
     criptoOn:false, tpvCripto5:3.30, takeCripto:0.0045, custoLiqCripto:0.0010,
     // Licença própria
     licencaOn:false, ganhoCripto:0.0010, ganhoComex:0.0000,
     // Custos e estrutura
-    custoProvedores:0.0045, aliquota:0.080, multOpex:1.00, cac:900, cacRem:900,
+    custoProvedores:0.0045, aliquota:0.080, multOpex:1.00, cac:900,
     opexCustom:null,
     // Retenção
     churn:0.050,
@@ -543,9 +550,11 @@ function calcular(){
     o.tkMed       = S.tkMed5 * fTk[i];
     o.tpvComexMed = o.clientesMed * o.tkMed / 1e6;
     o.tpvComex    = o.tpvComexMPE + o.tpvComexMed;
-    o.clientesRem = S.remessasOn ? Math.round(S.clientesRem5 * fCli[i]) : 0;
-    o.tkRem       = S.tkRem5 * fTk[i];
-    o.tpvRem      = o.clientesRem * o.tkRem / 1e6;
+    // Remessas derivam do próprio COMEX: frete + seguro, capturados em parte.
+    o.tpvFreteSeguro = o.tpvComex * pctFreteSeguro();
+    o.tpvRem      = S.remessasOn ? o.tpvFreteSeguro * S.capturaRem : 0;
+    o.clientesRem = 0;   // não há base própria: são os mesmos clientes de COMEX
+    o.tkRem       = 0;
     o.tpvCripto   = S.criptoOn ? S.tpvCripto5 * fCli[i] : 0;
     o.tpvTotal    = o.tpvComex + o.tpvRem + o.tpvCripto;
 
@@ -563,7 +572,7 @@ function calcular(){
     o.margemContrib = o.receitaBruta - o.custoExecucao - o.tributos;
     o.takeEfetiva   = o.tpvTotal > 0 ? o.receitaBruta / (o.tpvTotal * 1000) : 0;
     o.opex          = opexBaseAno(i) * S.multOpex;
-    o.totalClientes = o.clientesMPE + o.clientesMed + o.clientesRem;
+    o.totalClientes = o.clientesMPE + o.clientesMed;   // remessas não somam clientes
     a.push(o);
   }
 
@@ -572,8 +581,8 @@ function calcular(){
     c.novosClientes = p ? Math.max(0, c.totalClientes - p.totalClientes) : c.totalClientes;
     c.novosComex    = p ? Math.max(0, (c.clientesMPE + c.clientesMed) - (p.clientesMPE + p.clientesMed))
                         : (c.clientesMPE + c.clientesMed);
-    c.novosRem      = p ? Math.max(0, c.clientesRem - p.clientesRem) : c.clientesRem;
-    c.gtm           = (c.novosComex * S.cac + c.novosRem * S.cacRem) / 1e6;
+    c.novosRem      = 0;   // remessas não geram aquisição própria
+    c.gtm           = (c.novosComex * S.cac) / 1e6;
     c.ganhoLicenca  = S.licencaOn ? (c.tpvCripto*1000*S.ganhoCripto + c.tpvComex*1000*S.ganhoComex) : 0;
     c.ebitda        = c.margemContrib - c.opex - c.gtm + c.ganhoLicenca;
     c.margemEbitda  = c.receitaBruta > 0 ? c.ebitda / c.receitaBruta : 0;
@@ -615,7 +624,7 @@ function calcular(){
   }
 
   // acumulados
-  var chaves = ['tpvComex','tpvRem','tpvCripto','tpvTotal','receitaComex','receitaComexMPE','receitaComexMed','receitaRem','receitaCripto',
+  var chaves = ['tpvComex','tpvFreteSeguro','tpvRem','tpvCripto','tpvTotal','receitaComex','receitaComexMPE','receitaComexMed','receitaRem','receitaCripto',
                 'receitaBruta','custoFiat','custoCripto','custoExecucao','tributos','margemContrib',
                 'opex','gtm','ganhoLicenca','ebitda'];
   m.acum = {};
@@ -726,7 +735,7 @@ function premissasRef(){
   var e = REF_ESTADO;
   var t = 'COMEX ' + fmtInt(e.clientesMPE5) + ' × ' + fmtMil(e.tkMPE5) +
           ' + ' + fmtInt(e.clientesMed5) + ' × ' + fmtMil(e.tkMed5) +
-          ' · remessas ' + fmtInt(e.clientesRem5) + ' × ' + fmtMil(e.tkRem5) +
+          ' · frete e seguro ' + fmtPct(pctFreteSeguro(),1) + ' com captura de ' + fmtPct(e.capturaRem,0) +
           ' · provedores ' + fmtPct(e.custoProvedores,2) +
           ' · CAC ' + fmtRS(e.cac) +
           ' · churn ' + fmtPct(e.churn,1);
@@ -754,8 +763,8 @@ function aplicarEscopo(qual){
     e.criptoOn = true; e.licencaOn = true;
   } else if(qual === 'conservador'){
     e.clientesMPE5 = 2000; e.tkMPE5 = 565;
-    e.clientesRem5 = 2000;
-    e.cac = 1500; e.cacRem = 1500;
+    e.capturaRem = 0.25;
+    e.cac = 1500;
     e.churn = 0.10;
   }
   S = e;
@@ -857,7 +866,7 @@ var TIPS = {
 
   gtm: function(){ return '<b>GTM</b><br><span style="font-size:11px;color:#9AAAAB">Go To Market</span><br><br>'+
     'O que se gasta para conquistar clientes: comercial, marketing, eventos e ações de aquisição.'+
-    '<span class="tip-form">Ano 5: '+fmtInt(M.a5.novosComex)+' clientes novos de COMEX × '+fmtRS(S.cac)+' + '+fmtInt(M.a5.novosRem)+' de remessas × '+fmtRS(S.cacRem)+'</span>'+
+    '<span class="tip-form">Ano 5: '+fmtInt(M.a5.novosComex)+' clientes novos de COMEX × '+fmtRS(S.cac)+'</span>'+
     'Ano 5: <b>'+fmtMi(M.a5.gtm)+'</b><br>Acumulado em 5 anos: '+fmtMi(M.acum.gtm); },
 
   ebitda: function(){ return '<b>EBITDA</b><br><span style="font-size:11px;color:#9AAAAB">Earnings Before Interest, Taxes, Depreciation and Amortization</span><br><br>'+
@@ -948,6 +957,12 @@ var TIPS = {
     'A empresa não troca de banco: a BROSBNK fica com uma parte do fluxo dela. Quanto maior o cliente, menor tende a ser essa fatia, porque ele tem mesa de câmbio, gerente dedicado e poder de negociação.<br><br>'+
     'A carteira também define o universo de médias: '+fmtBi(MERCADO.samComexMedias.valor,1)+' ÷ '+fmtMil(S.carteiraMed)+' = <b>'+fmtInt(M.universoMed)+' empresas</b>.'; },
 
+  freteSeguro: function(){ return '<b>Frete e seguro sobre o TPV COMEX</b><br><br>'+
+    'Toda operação de comércio exterior carrega frete e seguro internacionais, pagos ao exterior. É despesa da própria importação, não um serviço à parte.'+
+    '<span class="tip-form">'+fmtPct(FRETE_PCT,1)+' de frete + '+fmtPct(SEGURO_PCT,1)+' de seguro = '+fmtPct(pctFreteSeguro(),1)+' do TPV de COMEX</span>'+
+    'Ano 5: '+fmtBi(M.a5.tpvComex)+' de COMEX geram <b>'+fmtBi(M.a5.tpvFreteSeguro)+'</b> de frete e seguro. Com captura de '+fmtPct(S.capturaRem,0)+', passam pela plataforma <b>'+fmtBi(M.a5.tpvRem)+'</b>.<br><br>'+
+    'O percentual é premissa fixa e aritmética. O que se decide é quanto desse fluxo a BROSBNK executa — e são os mesmos clientes de COMEX, sem aquisição adicional.'; },
+
   takeEfetiva: function(){ return '<b>Take rate efetiva</b><br><br>'+
     'O preço médio que a operação de fato pratica: toda a receita dividida por todo o volume. Não é uma tarifa cobrada de ninguém — é o resultado da mistura entre as verticais.'+
     '<span class="tip-form">Ano 5: '+fmtMi(M.a5.receitaBruta)+' ÷ '+fmtBi(M.a5.tpvTotal)+' = '+fmtPct(M.a5.takeEfetiva,3)+'</span>'+
@@ -1014,9 +1029,8 @@ var CONTROLES = [
   {g:'comexmed', k:'capturaMedIn', rot:'Captura da carteira',           min:5,    max:100,   passo:1,   tipo:'pct', modo:'ambos',    tipRef:'carteiraMed', nota:function(){ return 'Ticket que passa pela plataforma: <b>'+fmtMil(S.carteiraMed*S.capturaMedIn)+' por ano</b> — '+fmtPct(S.capturaMedIn,0)+' da carteira de '+fmtMil(S.carteiraMed)+'.'; }},
   {g:'comexmed', k:'takeMed',      rot:'Take rate cobrada',             min:0.50, max:2.00,  passo:0.01, tipo:'pct', modo:'ambos',    tipRef:'takeMed'},
 
-  {g:'rem',   k:'clientesRem5', rot:'Clientes de remessas no Ano 5',    min:0,    max:10000, passo:50,  tipo:'int', modo:'ambos',    tip:'Quantos clientes usarão a plataforma para enviar e receber dinheiro do exterior fora das operações de comércio exterior.'},
-  {g:'rem',   k:'tkRem5',       rot:'Ticket médio de remessa (R$ mil/ano)', min:50, max:1000, passo:1,  tipo:'int', modo:'ambos',    tipRef:'ticket', nota:function(){ return notaTicketRem(); }},
-  {g:'rem',   k:'takeRem',      rot:'Take rate remessas',               min:0.80, max:2.00,  passo:0.01, tipo:'pct', modo:'avancado', tipRef:'take'},
+  {g:'rem',   k:'capturaRem',   rot:'Captura do frete e seguro',        min:0,    max:100,   passo:1,   tipo:'pct', modo:'ambos',    tipRef:'freteSeguro', antes:function(){ return blocoFreteSeguro(); }, nota:function(){ return notaTicketRem(); }},
+  {g:'rem',   k:'takeRem',      rot:'Take rate cobrada',                min:0.80, max:2.00,  passo:0.01, tipo:'pct', modo:'ambos',    tipRef:'take'},
 
   {g:'cripto',k:'tpvCripto5',   rot:'TPV cripto Ano 5 (R$ bi)',         min:0,    max:10,    passo:0.05, tipo:'dec', modo:'ambos',   tipRef:'tpv'},
   {g:'cripto',k:'takeCripto',   rot:'Take rate cripto',                 min:0.20, max:1.00,  passo:0.01, tipo:'pct', modo:'ambos',   tipRef:'take'},
@@ -1030,7 +1044,6 @@ var CONTROLES = [
   {g:'custo', k:'aliquota',     rot:'Provisão tributária',              min:0.0,  max:15.0,  passo:0.1, tipo:'pct', modo:'avancado', tipRef:'tributos'},
   {g:'custo', k:'multOpex',     rot:'Multiplicador de OPEX',            min:0.50, max:2.00,  passo:0.01, tipo:'mult', modo:'apresentacao', tipRef:'opex'},
   {g:'custo', k:'cac',          rot:'CAC (R$ por cliente)',             min:200,  max:6000,  passo:50,   tipo:'int', modo:'ambos',    tipRef:'cac'},
-  {g:'custo', k:'cacRem',       rot:'CAC de remessas (R$)',             min:100,  max:6000,  passo:50,   tipo:'int', modo:'avancado', tipRef:'cac'},
 
   {g:'ret',   k:'churn',        rot:'Churn (ao ano)',                   min:0.0,  max:10.0,  passo:0.1, tipo:'pct', modo:'ambos',    tipRef:'churn'},
 
@@ -1066,10 +1079,10 @@ function notaTicketMPE(){
             : ' — soma bruta, sem deduplicação.') + '</span>';
 }
 function notaTicketRem(){
-  var pen = M && M.pen ? M.pen.remessas : 0;
-  return 'Ticket de <b>' + fmtMil(S.tkRem5) + ' por ano</b> — cerca de ' + fmtMil(S.tkRem5/12) +
-         ' por mês por cliente. A base projetada representa ' + fmtPct(pen,2) +
-         ' do mercado de remessas.';
+  if(!M || !M.a5) return '';
+  return 'Volume que passa pela plataforma: <b>' + fmtBi(M.a5.tpvRem) + ' no Ano 5</b> — ' +
+         fmtPct(S.capturaRem,0) + ' de ' + fmtBi(M.a5.tpvFreteSeguro) + ' de frete e seguro gerados pelo próprio COMEX.' +
+         '<br><span style="opacity:.75">Sem base de clientes própria e sem CAC: são os mesmos importadores e exportadores já contabilizados em COMEX.</span>';
 }
 
 function valorExibido(c){
@@ -1105,6 +1118,15 @@ function visivel(c){
 function htmlAjuda(ref){ return '<button class="ajuda" data-tip="'+ref+'" aria-label="Ajuda">?</button>'; }
 
 /* Carteira da MPE — derivada do mercado, exibida com o mesmo rótulo das médias. */
+/* Premissa fixa de frete e seguro, exibida acima do controle de captura. */
+function blocoFreteSeguro(){
+  return '<div class="ctl" style="--cor-vertical:'+CORES.remessas+'" data-testid="premissa-frete-seguro">'+
+    '<div class="ctl-topo"><span class="ctl-rot">Frete e seguro sobre o TPV COMEX</span>'+
+    htmlAjuda('freteSeguro')+'<span class="ctl-val">'+fmtPct(pctFreteSeguro(),1)+'</span></div>'+
+    '<div style="font-size:11.5px;color:#8A9392;margin-top:2px">'+fmtPct(FRETE_PCT,1)+' de frete + '+fmtPct(SEGURO_PCT,1)+' de seguro — premissa fixa, não editável</div>'+
+    '</div>';
+}
+
 function blocoCarteiraMpe(){
   return '<div class="ctl" style="--cor-vertical:'+CORES.comex+'" data-testid="carteira-mpe-derivada">'+
     '<div class="ctl-topo"><span class="ctl-rot">Carteira COMEX da empresa (R$ mil/ano)</span>'+
@@ -1207,9 +1229,7 @@ function renderControles(){
       if(gr.id==='comexmed' && S.takeMed > S.takeComex){
         h += '<div class="aviso aviso-ambar" data-testid="aviso-take-media">Take rate das médias maior que a das MPEs — empresa maior costuma negociar preço melhor, não pior.</div>';
       }
-      if(gr.id==='rem' && S.tkRem5 > S.tkMPE5){
-        h += '<div class="aviso aviso-ambar" data-testid="aviso-ticket-remessa">Remessa com ticket maior que COMEX — verifique a coerência da narrativa.</div>';
-      }
+
       if(gr.id==='saida'){
         h += '<div class="metrica" style="border-bottom:0;padding-bottom:0"><div class="metrica-rot">Investimento total '+htmlAjuda('aporte')+'</div>'+
              '<div class="metrica-val" data-testid="investimento-total">'+fmtMi(aporteTotal())+'</div>'+
@@ -1665,8 +1685,15 @@ function painelMercado(){
     tam: fmtBi(MERCADO.tamRemessas.valor,0), fonteTam: MERCADO.tamRemessas.fonte,
     sam: fmtBi(MERCADO.tamRemessasPjMin.valor,0)+' – '+fmtBi(MERCADO.tamRemessasPjMax.valor,0), fonteSam: 'Pessoa jurídica — '+MERCADO.tamRemessasPjMin.fonte,
     som: fmtBi(M.a5.tpvRem), pen: M.pen.remessas,
-    extra: '<div class="metrica"><div class="metrica-rot">Clientes no Ano 5</div><div class="metrica-val">'+fmtInt(S.clientesRem5)+'</div>'+
-           '<div class="metrica-sub">Ticket médio de '+fmtMil(M.a5.tkRem)+' por ano</div></div>'
+    extra: '<div class="metrica"><div class="metrica-rot">Frete e seguro gerados pelo COMEX '+htmlAjuda('freteSeguro')+'</div>'+
+           '<div class="metrica-val">'+fmtBi(M.a5.tpvFreteSeguro)+'</div>'+
+           '<div class="metrica-sub">'+fmtPct(pctFreteSeguro(),1)+' sobre '+fmtBi(M.a5.tpvComex)+' de COMEX</div></div>'+
+           '<div class="metrica"><div class="metrica-rot">Captura do fluxo</div>'+
+           '<div class="metrica-val">'+fmtPct(S.capturaRem,0)+'</div>'+
+           '<div class="metrica-sub">sem base de clientes própria — mesmos clientes de COMEX</div></div>'+
+           '<div class="metrica" style="border-bottom:0"><div class="metrica-rot">Take rate aplicada '+htmlAjuda('take')+'</div>'+
+           '<div class="metrica-val">'+fmtPct(S.takeRem,2)+'</div>'+
+           '<div class="metrica-sub">receita no Ano 5: '+fmtMi(M.a5.receitaRem)+'</div></div>'
   });
   if(S.criptoOn){
     h += cartaoMercado({
@@ -2091,7 +2118,6 @@ function agendarRender(){
 var ASSINATURA_AVISOS = '';
 function assinaturaAvisos(){
   return [
-    S.tkRem5 > S.tkMPE5,
     S.tkMed5 > S.carteiraMed,
     S.carteiraMed <= (M && M.tkUniverso ? M.tkUniverso : 0),
     S.takeMed > S.takeComex,
@@ -2127,8 +2153,8 @@ function atualizarLeve(c, el){
     var nMpe = document.querySelector('[data-testid="nota-capturaMpeIn"]');
     if(nMpe) nMpe.innerHTML = notaTicketMPE();
   }
-  if(c.k === 'tkRem5' || c.k === 'clientesRem5'){
-    var nRem = document.querySelector('[data-testid="nota-tkRem5"]');
+  if(c.k === 'capturaRem' || c.k === 'clientesMPE5' || c.k === 'capturaMpeIn' || c.k === 'clientesMed5' || c.k === 'capturaMedIn' || c.k === 'carteiraMed'){
+    var nRem = document.querySelector('[data-testid="nota-capturaRem"]');
     if(nRem) nRem.innerHTML = notaTicketRem();
   }
 
@@ -2280,8 +2306,8 @@ function premissasLista(){
     ['Ticket capturado da média (R$ mil/ano)', S.tkMed5],
     ['Captura da carteira da média', M.capturaMed],
     ['Take rate COMEX — médias', S.takeMed],
-    ['Clientes de remessas no Ano 5', S.clientesRem5],
-    ['Ticket médio de remessa (R$ mil/ano)', S.tkRem5],
+    ['Frete + seguro sobre o TPV COMEX', pctFreteSeguro()],
+    ['Captura do frete e seguro', S.capturaRem],
     ['Take rate remessas', S.takeRem],
     ['Vertical cripto ligada', S.criptoOn?'Sim':'Não'],
     ['TPV cripto Ano 5 (R$ bi)', S.criptoOn?S.tpvCripto5:0],
@@ -2294,7 +2320,6 @@ function premissasLista(){
     ['Provisão tributária', S.aliquota],
     ['Multiplicador de OPEX', S.multOpex],
     ['CAC (R$ por cliente)', S.cac],
-    ['CAC de remessas (R$)', S.cacRem],
     ['Churn ao ano', S.churn],
     ['Múltiplo de saída', S.multiploSaida],
     ['Investimento total (R$ mi)', aporteTotal()],
