@@ -366,7 +366,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.07-4</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.07-5</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -1927,9 +1927,14 @@ function painelCenarios(){
     h += '<div class="cartao"><div class="vazio" data-testid="cenarios-vazio">Nenhum cenário salvo ainda.</div></div>';
     return h;
   }
-  h += '<div class="cartao"><div class="cartao-titulo">Comparação</div><div class="tab-rolagem">'+
+  var naComparacao = CENARIOS.filter(function(c){ return c.comparar !== false; });
+  h += '<div class="cartao"><div class="cartao-titulo">Comparação <span class="pill">'+naComparacao.length+' de '+CENARIOS.length+'</span></div>';
+  if(!naComparacao.length){
+    h += '<div class="vazio" data-testid="comparacao-vazia">Nenhum cenário marcado para comparação. Marque na lista abaixo.</div></div>';
+  } else {
+  h += '<div class="tab-rolagem">'+
        '<table class="dados" data-testid="tabela-cenarios"><thead><tr><th>Indicador</th><th>Cenário atual</th>'+
-       CENARIOS.map(function(c,i){ return '<th>'+esc(c.nome)+'</th>'; }).join('')+'</tr></thead><tbody>';
+       naComparacao.map(function(c,i){ return '<th>'+esc(c.nome)+'</th>'; }).join('')+'</tr></thead><tbody>';
   var linhas = [
     ['TPV Ano 5',        function(mm){ return fmtBi(mm.a5.tpvTotal); }],
     ['Receita bruta A5', function(mm){ return fmtMi(mm.a5.receitaBruta); }],
@@ -1945,19 +1950,26 @@ function painelCenarios(){
   ];
   linhas.forEach(function(l){
     h += '<tr'+(l[0].indexOf('EBITDA')>=0||l[0].indexOf('MOIC')>=0?' class="destaque"':'')+'><td>'+l[0]+'</td><td>'+l[1](M)+'</td>'+
-         CENARIOS.map(function(c){ return '<td>'+l[1](c.m)+'</td>'; }).join('')+'</tr>';
+         naComparacao.map(function(c){ return '<td>'+l[1](c.m)+'</td>'; }).join('')+'</tr>';
   });
-  h += '</tbody></table></div>';
-  h += '<div style="margin-top:14px">'+CENARIOS.map(function(c,i){
+  h += '</tbody></table></div></div>';
+  }
+  h += '<div class="cartao"><div class="cartao-titulo">Cenários na memória</div>';
+  h += '<div>'+CENARIOS.map(function(c,i){
         var ehRef = (c.nome === REF_ROTULO);
         var ehAtual = (c.nome === NOME_CENARIO);
         return '<div class="cenario-linha"'+(ehAtual?' style="background:#EDF4F5;border-radius:8px;padding-left:8px;padding-right:8px"':'')+'>'+
+               '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap" title="Incluir na comparação">'+
+               '<input type="checkbox" data-comparar="'+i+'" data-testid="chk-comparar-'+i+'"'+(c.comparar!==false?' checked':'')+'>'+
+               '<span style="font-size:11.5px;color:#8A9392">comparar</span></label>'+
                '<b style="flex:1">'+(ehRef?'★ ':'')+esc(c.nome)+(ehAtual?' <span class="pill">na tela</span>':'')+'</b>'+
                '<span style="font-size:11.5px;color:#8A9392">'+esc(c.criadoEm)+'</span>'+
                '<button class="btn btn-pequeno" data-acao="tornarReferencia" data-idx="'+i+'"'+(ehRef?' disabled':'')+'>'+(ehRef?'É a referência':'Tornar referência')+'</button>'+
                '<button class="btn btn-pequeno" data-acao="carregarCenario" data-idx="'+i+'">Carregar</button>'+
                '<button class="btn btn-pequeno" data-acao="excluirCenario" data-idx="'+i+'">Excluir</button></div>';
-      }).join('')+'</div></div>';
+      }).join('')+'</div>'+
+      '<div style="font-size:12px;color:#8A9392;line-height:1.5;margin-top:12px">'+
+      'Desmarque <b>comparar</b> para tirar um cenário da tabela sem removê-lo da lista.</div></div>';
   return h;
 }
 
@@ -2188,6 +2200,12 @@ function atualizarLeve(c, el){
 
 document.addEventListener('change', function(e){
   var el = e.target;
+  if(el.hasAttribute && el.hasAttribute('data-comparar')){
+    var ic = +el.getAttribute('data-comparar');
+    if(CENARIOS[ic]) CENARIOS[ic].comparar = el.checked;
+    renderPaineis();
+    return;
+  }
   if(el.hasAttribute && el.hasAttribute('data-chave')){
     var ch = el.getAttribute('data-chave');
     S[ch] = el.checked;
