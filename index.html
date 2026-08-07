@@ -366,7 +366,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.07-3</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.07-4</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -1902,7 +1902,8 @@ function painelCenarios(){
     '<button class="btn" data-acao="gerarLinkTravado" data-testid="btn-gerar-link-travado">Gerar link travado</button>'+
     '<button class="btn" data-acao="restaurarPadrao" data-testid="btn-restaurar">Restaurar caso-base</button>'+
     '<button class="btn" data-acao="baixarCenarios" data-testid="btn-baixar-cenarios">Baixar cenários</button>'+
-    '<button class="btn" data-acao="carregarCenarios" data-testid="btn-carregar-cenarios">Carregar cenários</button></div>'+
+    '<button class="btn" data-acao="carregarCenarios" data-testid="btn-carregar-cenarios">Carregar cenários</button>'+
+    (CENARIOS.length ? '<button class="btn" data-acao="limparCenarios" data-testid="btn-limpar-cenarios">Limpar lista</button>' : '')+'</div>'+
     '<input type="file" id="arquivoCenarios" accept="application/json,.json" style="display:none">'+
     '<div class="cartao-titulo" style="margin-top:4px">Cenários por escopo</div>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'+
@@ -2200,7 +2201,12 @@ document.addEventListener('change', function(e){
 });
 
 function executarAcao(acao, el){
-  if(acao==='baixarCenarios'){ baixarCenarios(); }
+  if(acao==='limparCenarios'){
+    if(CENARIOS.length && confirm('Remover os ' + CENARIOS.length + ' cenários da lista? Isso não apaga arquivos já baixados.')){
+      CENARIOS.length = 0; render();
+    }
+  }
+  else if(acao==='baixarCenarios'){ baixarCenarios(); }
   else if(acao==='carregarCenarios'){ carregarCenarios(); }
   else if(acao==='fecharGavetas'){ fecharGavetas(); }
   else if(acao==='resetOpex'){ S.opexCustom = null; render(); }
@@ -2237,6 +2243,7 @@ function salvarCenario(){
   var nome = (document.getElementById('nomeCenario').value||'').trim() || ('Cenário '+(CENARIOS.length+1));
   var estado = JSON.parse(JSON.stringify(S));
   var chk = document.getElementById('cenarioPadrao');
+  nome = nomeUnico(nome);
   CENARIOS.push({ nome:nome, estado:estado, m:calcular(), criadoEm:dataHoraBR() });
   NOME_CENARIO = nome;
   if(chk && chk.checked) definirReferencia(estado, nome);
@@ -2246,6 +2253,15 @@ function salvarCenario(){
 }
 
 /* ---------- Cenários em arquivo ---------- */
+
+/* Nomes repetidos quebram a marcação de "na tela" e a tabela de comparação. */
+function nomeUnico(nome){
+  var existe = function(n){ return CENARIOS.some(function(c){ return c.nome === n; }); };
+  if(!existe(nome)) return nome;
+  var i = 2;
+  while(existe(nome + ' (' + i + ')')) i++;
+  return nome + ' (' + i + ')';
+}
 
 function baixarCenarios(){
   if(!CENARIOS.length){ alert('Não há cenários salvos para baixar. Salve pelo menos um cenário antes.'); return; }
@@ -2282,12 +2298,18 @@ function carregarCenarios(){
       if(!pacote || pacote.formato !== 'brosbnk-cenarios' || !pacote.cenarios || !pacote.cenarios.length){
         alert('Arquivo inválido: não parece ser um arquivo de cenários do simulador.'); return;
       }
+      // Carregar um arquivo substitui a lista. Acumular gerava cópias a cada carga.
+      if(CENARIOS.length && !confirm('Já existem ' + CENARIOS.length + ' cenário(s) na lista.\n\nOK substitui pelos do arquivo. Cancelar mantém os atuais e acrescenta os novos.')){
+        // segue acumulando, mas sem repetir nomes
+      } else {
+        CENARIOS.length = 0;
+      }
       var novos = 0, primeiro = null;
       pacote.cenarios.forEach(function(c){
         if(!c || !c.estado) return;
         var base = estadoPadrao();
         for(var k in c.estado){ if(c.estado.hasOwnProperty(k)) base[k] = c.estado[k]; }   // tolera arquivos antigos
-        var item = { nome: c.nome || ('Cenário '+(CENARIOS.length+1)),
+        var item = { nome: nomeUnico(c.nome || ('Cenário '+(CENARIOS.length+1))),
                      estado: base,
                      m: calcularCom(base),
                      criadoEm: c.criadoEm || dataHoraBR() };
