@@ -216,6 +216,20 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
 }
 .faixa-tam .metrica-rot{justify-content:center;}
 .faixa-tam .metrica-val{font-size:26px; color:#03518F;}
+.cartao.ampliado{
+  position:fixed; top:5vh; left:50%; transform:translateX(-50%);
+  width:min(1100px,94vw); max-height:90vh; overflow:auto; z-index:120;
+  box-shadow:0 24px 64px rgba(0,0,0,.28);
+}
+.cartao.ampliado .tab-rolagem{overflow:visible;}
+.cartao.ampliado .ctl-num{width:88px !important; font-size:13px !important; padding:6px 8px !important;}
+.cartao.ampliado table.dados{font-size:13px !important;}
+.btn-ampliar{
+  border:0; background:transparent; color:#8A9392; cursor:pointer; padding:3px 5px;
+  border-radius:5px; line-height:0; margin-left:auto;
+}
+.btn-ampliar:hover{background:var(--bg); color:var(--primaria);}
+.btn-ampliar svg{width:14px; height:14px; display:block;}
 .cartao-total{
   background:linear-gradient(180deg,#F2F7FB 0%, var(--superficie) 62%);
   border-color:#C3D6E6;
@@ -366,7 +380,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.07-8</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.07-9</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -506,6 +520,19 @@ function nomeArquivo(){
            .replace(/[^\w\s-]/g,'').trim().replace(/\s+/g,'_') +
          '_' + new Date().toISOString().slice(0,10);
 }
+
+var CARTAO_AMPLIADO = null;   // id do cartão aberto em tela cheia
+
+function botaoAmpliar(id){
+  var aberto = CARTAO_AMPLIADO === id;
+  var rot = aberto ? 'Reduzir' : 'Ampliar';
+  var caminho = aberto
+    ? '<path d="M6.5 2.5v4h-4M9.5 13.5v-4h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+    : '<path d="M9.5 2.5h4v4M6.5 13.5h-4v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>';
+  return '<button class="btn-ampliar" data-ampliar="'+id+'" data-testid="ampliar-'+id+'" aria-label="'+rot+'" title="'+rot+'">'+
+         '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true">'+caminho+'</svg></button>';
+}
+function classeAmpliado(id){ return CARTAO_AMPLIADO === id ? ' ampliado' : ''; }
 
 var CENARIOS = [];        // apenas em memória — nenhum dado é gravado no navegador
 var avisoLicenca = false; // mostrado quando a licença é desligada junto com a cripto
@@ -1253,7 +1280,7 @@ function renderControles(){
 
   if(S.modo==='avancado'){
     // OPEX por categoria
-    h += '<div class="cartao" data-testid="grupo-opex"><div class="cartao-titulo">OPEX por categoria '+htmlAjuda('opex')+'</div>'+
+    h += '<div class="cartao'+classeAmpliado('opex')+'" data-testid="grupo-opex"><div class="cartao-titulo">OPEX por categoria '+htmlAjuda('opex')+botaoAmpliar('opex')+'</div>'+
          '<div style="font-size:11.5px;color:#8A9392;margin-bottom:8px">Valores em R$ mil por ano.</div>'+
          '<div class="tab-rolagem"><table class="dados" style="min-width:420px;font-size:11.5px">'+
          '<thead><tr><th>Categoria</th><th>A1</th><th>A2</th><th>A3</th><th>A4</th><th>A5</th></tr></thead><tbody>';
@@ -1270,7 +1297,7 @@ function renderControles(){
          '<button class="btn btn-pequeno" style="margin-top:10px" data-acao="resetOpex" data-testid="btn-reset-opex">Restaurar OPEX do plano</button></div>';
 
     // Curva
-    h += '<div class="cartao" data-testid="grupo-curva"><div class="cartao-titulo">Curva de entrada e maturação</div>'+
+    h += '<div class="cartao'+classeAmpliado('curva')+'" data-testid="grupo-curva"><div class="cartao-titulo">Curva de entrada e maturação'+(S.curvaDestravada?botaoAmpliar('curva'):'')+'</div>'+
          '<label class="chave" style="margin-bottom:12px"><input type="checkbox" data-chave="curvaDestravada" data-testid="chave-curva"'+(S.curvaDestravada?' checked':'')+'>'+
          '<span class="trilho"></span><span class="chave-rot">'+(S.curvaDestravada?'Curva destravada':'Destravar curva')+'</span></label>';
     if(S.curvaDestravada){
@@ -1298,6 +1325,7 @@ function renderControles(){
         '<div style="font-size:12.5px;line-height:1.55;color:#6B7574">Este é um cenário compartilhado. Os controles estão travados: os números na tela são exatamente os que quem enviou o link calculou. As abas de resultado, o glossário e as exportações continuam disponíveis.</div></div>'+
         '<fieldset disabled data-testid="controles-travados" style="border:0;padding:0;margin:0;opacity:.72">'+h+'</fieldset>';
   }
+  if(CARTAO_AMPLIADO) h += '<div class="sobreposicao aberta" data-fechar-ampliar="1" style="z-index:115;top:0"></div>';
   document.getElementById('painelControles').innerHTML = h;
   var gav = document.getElementById('gavetaControles');
   if(gav){
@@ -2126,11 +2154,11 @@ document.addEventListener('input', function(e){
     if(!S.opexCustom) S.opexCustom = OPEX_CATEGORIAS.map(function(c){ return c.v.slice(); });
     var k = +el.getAttribute('data-opex'), i = +el.getAttribute('data-ano');
     S.opexCustom[k][i] = parseFloat(el.value)||0;
-    agendarRender();
+    atualizarSemControles();
   } else if(el.hasAttribute && el.hasAttribute('data-curva')){
     var nome = el.getAttribute('data-curva'), j = +el.getAttribute('data-ano');
     S[nome][j] = parseFloat(el.value)||0;
-    agendarRender();
+    atualizarSemControles();
   } else if(el.id === 'buscaGlossario'){
     renderGlossario(el.value);
   }
@@ -2142,6 +2170,27 @@ var pendente = null;
 function agendarRender(){
   if(pendente) cancelAnimationFrame(pendente);
   pendente = requestAnimationFrame(function(){ pendente=null; render(); });
+}
+
+/* Enquanto se digita numa tabela editável, o painel de controles NÃO pode ser
+   redesenhado — o input seria substituído e o foco se perderia a cada tecla.
+   Atualiza só os resultados; os totais da própria tabela são corrigidos à parte. */
+function atualizarSemControles(){
+  if(pendente) cancelAnimationFrame(pendente);
+  pendente = requestAnimationFrame(function(){
+    pendente = null;
+    M = calcular();
+    renderKpis();
+    renderPaineis();
+    atualizarTotaisOpex();
+  });
+}
+
+function atualizarTotaisOpex(){
+  for(var i=0;i<5;i++){
+    var alvos = document.querySelectorAll('[data-testid="opex-total-'+(i+1)+'"]');
+    for(var a=0;a<alvos.length;a++) alvos[a].textContent = nf(opexBaseAno(i)*1000,1);
+  }
 }
 /* Assinatura dos avisos de coerência. Se mudar, o painel de controles precisa
    ser redesenhado — senão o aviso não aparece (nem some) durante o arrasto. */
@@ -2198,8 +2247,28 @@ function atualizarLeve(c, el){
   if(assinaturaAvisos() !== ASSINATURA_AVISOS) renderControles();
 }
 
+document.addEventListener('click', function(e){
+  var amp = e.target.closest ? e.target.closest('[data-ampliar]') : null;
+  if(amp){
+    var id = amp.getAttribute('data-ampliar');
+    CARTAO_AMPLIADO = (CARTAO_AMPLIADO === id) ? null : id;
+    renderControles(); e.stopPropagation(); return;
+  }
+  if(e.target.hasAttribute && e.target.hasAttribute('data-fechar-ampliar')){
+    CARTAO_AMPLIADO = null; renderControles(); e.stopPropagation(); return;
+  }
+}, true);
+
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape' && CARTAO_AMPLIADO){ CARTAO_AMPLIADO = null; renderControles(); }
+});
+
 document.addEventListener('change', function(e){
   var el = e.target;
+  if(el.hasAttribute && (el.hasAttribute('data-opex') || el.hasAttribute('data-curva'))){
+    render();   // ao sair do campo, acerta totais, avisos e o resto do painel
+    return;
+  }
   if(el.hasAttribute && el.hasAttribute('data-comparar')){
     var ic = +el.getAttribute('data-comparar');
     if(CENARIOS[ic]) CENARIOS[ic].comparar = el.checked;
