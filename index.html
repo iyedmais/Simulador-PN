@@ -366,7 +366,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.05-3</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.07-2</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -498,6 +498,15 @@ function estadoPadrao(){
 }
 
 var S = estadoPadrao();
+var NOME_CENARIO = '';   // nome do cenário carregado ou salvo por último
+function rotuloCenario(){ return NOME_CENARIO || 'cenário não salvo'; }
+function nomeArquivo(){
+  var base = NOME_CENARIO ? NOME_CENARIO : 'simulador';
+  return 'BROSBNK_' + base.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+           .replace(/[^\w\s-]/g,'').trim().replace(/\s+/g,'_') +
+         '_' + new Date().toISOString().slice(0,10);
+}
+
 var CENARIOS = [];        // apenas em memória — nenhum dado é gravado no navegador
 var avisoLicenca = false; // mostrado quando a licença é desligada junto com a cripto
 var SOMENTE_LEITURA = false; // ligado quando a página é aberta por um link travado
@@ -2198,8 +2207,8 @@ function executarAcao(acao, el){
   else if(acao==='gerarLink'){ gerarLink(false); }
   else if(acao==='gerarLinkTravado'){ gerarLink(true); }
   else if(acao==='copiarLink'){ copiarLink(); }
-  else if(acao==='restaurarPadrao'){ var modo=S.modo; S = estadoPadrao(); S.modo=modo; render(); }
-  else if(acao==='carregarCenario'){ var i=+el.getAttribute('data-idx'); S = JSON.parse(JSON.stringify(CENARIOS[i].estado)); render(); }
+  else if(acao==='restaurarPadrao'){ var modo=S.modo; S = estadoPadrao(); S.modo=modo; NOME_CENARIO=''; render(); }
+  else if(acao==='carregarCenario'){ var i=+el.getAttribute('data-idx'); S = JSON.parse(JSON.stringify(CENARIOS[i].estado)); NOME_CENARIO = CENARIOS[i].nome; render(); }
   else if(acao==='cenarioEscopo'){ aplicarEscopo(el.getAttribute('data-escopo')); }
   else if(acao==='tornarReferencia'){ var k=+el.getAttribute('data-idx'); definirReferencia(CENARIOS[k].estado, CENARIOS[k].nome); render(); }
   else if(acao==='excluirCenario'){ var j=+el.getAttribute('data-idx');
@@ -2227,6 +2236,7 @@ function salvarCenario(){
   var estado = JSON.parse(JSON.stringify(S));
   var chk = document.getElementById('cenarioPadrao');
   CENARIOS.push({ nome:nome, estado:estado, m:calcular(), criadoEm:dataHoraBR() });
+  NOME_CENARIO = nome;
   if(chk && chk.checked) definirReferencia(estado, nome);
   fecharModalSalvar();
   abaAtiva = 'cenarios';
@@ -2250,7 +2260,7 @@ function baixarCenarios(){
   var url  = URL.createObjectURL(blob);
   var a    = document.createElement('a');
   a.href = url;
-  a.download = 'BROSBNK_cenarios_' + new Date().toISOString().slice(0,10) + '.json';
+  a.download = (CENARIOS.length === 1 ? nomeArquivo() : 'BROSBNK_cenarios_' + new Date().toISOString().slice(0,10)) + '.json';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
 }
@@ -2270,25 +2280,42 @@ function carregarCenarios(){
       if(!pacote || pacote.formato !== 'brosbnk-cenarios' || !pacote.cenarios || !pacote.cenarios.length){
         alert('Arquivo inválido: não parece ser um arquivo de cenários do simulador.'); return;
       }
-      var novos = 0;
+      var novos = 0, primeiro = null;
       pacote.cenarios.forEach(function(c){
         if(!c || !c.estado) return;
         var base = estadoPadrao();
         for(var k in c.estado){ if(c.estado.hasOwnProperty(k)) base[k] = c.estado[k]; }   // tolera arquivos antigos
-        CENARIOS.push({ nome: c.nome || ('Cenário '+(CENARIOS.length+1)),
-                        estado: base,
-                        m: calcularCom(base),
-                        criadoEm: c.criadoEm || dataHoraBR() });
+        var item = { nome: c.nome || ('Cenário '+(CENARIOS.length+1)),
+                     estado: base,
+                     m: calcularCom(base),
+                     criadoEm: c.criadoEm || dataHoraBR() };
+        CENARIOS.push(item);
+        if(!primeiro) primeiro = item;
         novos++;
       });
+      if(!novos){ alert('O arquivo não trouxe nenhum cenário válido.'); return; }
+
       if(pacote.referencia){
         var ref = CENARIOS.filter(function(c){ return c.nome === pacote.referencia; })[0];
         if(ref) definirReferencia(ref.estado, ref.nome);
       }
-      abaAtiva = 'cenarios';
+
+      var msg;
+      if(novos === 1){
+        // um cenário só: aplica direto na tela, que é o que se espera
+        var modo = S.modo;
+        S = JSON.parse(JSON.stringify(primeiro.estado));
+        S.modo = modo;
+        NOME_CENARIO = primeiro.nome;
+        abaAtiva = 'resumo';
+        msg = 'Cenário "' + primeiro.nome + '" carregado e aplicado. Os resultados foram recalculados com o modelo atual.';
+      } else {
+        abaAtiva = 'cenarios';
+        msg = novos + ' cenários adicionados à lista, já recalculados com o modelo atual. ' +
+              'Nenhum foi aplicado à tela — use o botão Carregar na linha do cenário que quiser ver.';
+      }
       render();
-      alert(novos + (novos === 1 ? ' cenário carregado.' : ' cenários carregados.') +
-            ' Os resultados foram recalculados com o modelo atual.');
+      alert(msg);
     };
     leitor.readAsText(arq);
   };
@@ -2553,7 +2580,7 @@ function exportarXlsx(){
   M.sensibilidade.forEach(function(l){ sn.push([l.multiplo,l.valuation,l.participacao,l.moicTotal,l.tir,l.evSobrePrimario]); });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sn), 'Sensibilidade');
 
-  XLSX.writeFile(wb, 'BROSBNK_simulador_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  XLSX.writeFile(wb, nomeArquivo()+'.xlsx');
 }
 
 /* ---------- Exportação: PDF ---------- */
@@ -2582,6 +2609,12 @@ function exportarPdf(){
   doc.setFontSize(8.5); doc.setTextColor(120,125,125);
   doc.text(dataHoraBR(), W-L, y, {align:'right'});
   y += 12;
+  if(NOME_CENARIO){
+    doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(12,78,84);
+    doc.text('Cenário: ' + NOME_CENARIO, L, y);
+    doc.setFont('helvetica','normal'); doc.setTextColor(0);
+    y += 12;
+  }
   doc.setDrawColor(216,220,220); doc.line(L, y, W-L, y); y += 18;
 
   var kpis = [
@@ -2695,7 +2728,7 @@ function exportarPdf(){
     doc.text(AVISO + '  ·  Gerado em ' + dataHoraBR(), L, doc.internal.pageSize.getHeight()-20);
     doc.text(p+'/'+total, W-L, doc.internal.pageSize.getHeight()-20, {align:'right'});
   }
-  doc.save('BROSBNK_simulador_'+new Date().toISOString().slice(0,10)+'.pdf');
+  doc.save(nomeArquivo()+'.pdf');
 }
 
 /* ---------- Inicialização ---------- */
