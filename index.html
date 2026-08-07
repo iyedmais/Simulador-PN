@@ -366,7 +366,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.07-5</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.07-6</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -2261,6 +2261,13 @@ function salvarCenario(){
   var nome = (document.getElementById('nomeCenario').value||'').trim() || ('Cenário '+(CENARIOS.length+1));
   var estado = JSON.parse(JSON.stringify(S));
   var chk = document.getElementById('cenarioPadrao');
+  if(jaExiste(estado)){
+    var igual = CENARIOS.filter(function(c){ return assinaturaEstado(c.estado) === assinaturaEstado(estado); })[0];
+    if(!confirm('Já existe um cenário com estas mesmas premissas: "' + igual.nome + '".\n\nSalvar mesmo assim?')){
+      fecharModalSalvar();
+      return;
+    }
+  }
   nome = nomeUnico(nome);
   CENARIOS.push({ nome:nome, estado:estado, m:calcular(), criadoEm:dataHoraBR() });
   NOME_CENARIO = nome;
@@ -2273,6 +2280,24 @@ function salvarCenario(){
 /* ---------- Cenários em arquivo ---------- */
 
 /* Nomes repetidos quebram a marcação de "na tela" e a tabela de comparação. */
+/* Assinatura canônica das premissas: dois cenários com o mesmo conteúdo
+   produzem a mesma string, independente da ordem das chaves. */
+function assinaturaEstado(e){
+  if(!e) return '';
+  var chaves = [];
+  for(var k in e){ if(e.hasOwnProperty(k) && k !== 'modo') chaves.push(k); }
+  chaves.sort();
+  return chaves.map(function(k){
+    var v = e[k];
+    return k + '=' + (v && typeof v === 'object' ? JSON.stringify(v) : String(v));
+  }).join('|');
+}
+
+function jaExiste(estado){
+  var a = assinaturaEstado(estado);
+  return CENARIOS.some(function(c){ return assinaturaEstado(c.estado) === a; });
+}
+
 function nomeUnico(nome){
   var existe = function(n){ return CENARIOS.some(function(c){ return c.nome === n; }); };
   if(!existe(nome)) return nome;
@@ -2322,11 +2347,12 @@ function carregarCenarios(){
       } else {
         CENARIOS.length = 0;
       }
-      var novos = 0, primeiro = null;
+      var novos = 0, repetidos = 0, primeiro = null;
       pacote.cenarios.forEach(function(c){
         if(!c || !c.estado) return;
         var base = estadoPadrao();
         for(var k in c.estado){ if(c.estado.hasOwnProperty(k)) base[k] = c.estado[k]; }   // tolera arquivos antigos
+        if(jaExiste(base)){ repetidos++; return; }   // premissas idênticas: mantém só uma
         var item = { nome: nomeUnico(c.nome || ('Cenário '+(CENARIOS.length+1))),
                      estado: base,
                      m: calcularCom(base),
@@ -2349,9 +2375,10 @@ function carregarCenarios(){
       NOME_CENARIO = primeiro.nome;
       abaAtiva = novos === 1 ? 'resumo' : 'cenarios';
       render();
-      alert(novos === 1
+      var sobra = repetidos ? ' ' + repetidos + ' cópia(s) com as mesmas premissas foram descartadas.' : '';
+      alert((novos === 1
         ? 'Cenário "' + primeiro.nome + '" carregado.'
-        : novos + ' cenários carregados. Mostrando "' + primeiro.nome + '" — para ver outro, clique em Carregar na lista abaixo.');
+        : novos + ' cenários carregados. Mostrando "' + primeiro.nome + '" — para ver outro, clique em Carregar na lista abaixo.') + sobra);
     };
     leitor.readAsText(arq);
   };
