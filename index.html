@@ -366,7 +366,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.07-2</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.07-3</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -1949,7 +1949,9 @@ function painelCenarios(){
   h += '</tbody></table></div>';
   h += '<div style="margin-top:14px">'+CENARIOS.map(function(c,i){
         var ehRef = (c.nome === REF_ROTULO);
-        return '<div class="cenario-linha"><b style="flex:1">'+(ehRef?'★ ':'')+esc(c.nome)+'</b>'+
+        var ehAtual = (c.nome === NOME_CENARIO);
+        return '<div class="cenario-linha"'+(ehAtual?' style="background:#EDF4F5;border-radius:8px;padding-left:8px;padding-right:8px"':'')+'>'+
+               '<b style="flex:1">'+(ehRef?'★ ':'')+esc(c.nome)+(ehAtual?' <span class="pill">na tela</span>':'')+'</b>'+
                '<span style="font-size:11.5px;color:#8A9392">'+esc(c.criadoEm)+'</span>'+
                '<button class="btn btn-pequeno" data-acao="tornarReferencia" data-idx="'+i+'"'+(ehRef?' disabled':'')+'>'+(ehRef?'É a referência':'Tornar referência')+'</button>'+
                '<button class="btn btn-pequeno" data-acao="carregarCenario" data-idx="'+i+'">Carregar</button>'+
@@ -2300,22 +2302,16 @@ function carregarCenarios(){
         if(ref) definirReferencia(ref.estado, ref.nome);
       }
 
-      var msg;
-      if(novos === 1){
-        // um cenário só: aplica direto na tela, que é o que se espera
-        var modo = S.modo;
-        S = JSON.parse(JSON.stringify(primeiro.estado));
-        S.modo = modo;
-        NOME_CENARIO = primeiro.nome;
-        abaAtiva = 'resumo';
-        msg = 'Cenário "' + primeiro.nome + '" carregado e aplicado. Os resultados foram recalculados com o modelo atual.';
-      } else {
-        abaAtiva = 'cenarios';
-        msg = novos + ' cenários adicionados à lista, já recalculados com o modelo atual. ' +
-              'Nenhum foi aplicado à tela — use o botão Carregar na linha do cenário que quiser ver.';
-      }
+      // Carregar sempre aplica algo na tela: o primeiro do arquivo.
+      var modo = S.modo;
+      S = JSON.parse(JSON.stringify(primeiro.estado));
+      S.modo = modo;
+      NOME_CENARIO = primeiro.nome;
+      abaAtiva = novos === 1 ? 'resumo' : 'cenarios';
       render();
-      alert(msg);
+      alert(novos === 1
+        ? 'Cenário "' + primeiro.nome + '" carregado.'
+        : novos + ' cenários carregados. Mostrando "' + primeiro.nome + '" — para ver outro, clique em Carregar na lista abaixo.');
     };
     leitor.readAsText(arq);
   };
