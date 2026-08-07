@@ -366,7 +366,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.05-2</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.05-3</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -1891,7 +1891,10 @@ function painelCenarios(){
     '<button class="btn btn-primario" data-acao="salvarCenario" data-testid="btn-salvar-2">Salvar cenário atual</button>'+
     '<button class="btn" data-acao="gerarLink" data-testid="btn-gerar-link">Gerar link editável</button>'+
     '<button class="btn" data-acao="gerarLinkTravado" data-testid="btn-gerar-link-travado">Gerar link travado</button>'+
-    '<button class="btn" data-acao="restaurarPadrao" data-testid="btn-restaurar">Restaurar caso-base</button></div>'+
+    '<button class="btn" data-acao="restaurarPadrao" data-testid="btn-restaurar">Restaurar caso-base</button>'+
+    '<button class="btn" data-acao="baixarCenarios" data-testid="btn-baixar-cenarios">Baixar cenários</button>'+
+    '<button class="btn" data-acao="carregarCenarios" data-testid="btn-carregar-cenarios">Carregar cenários</button></div>'+
+    '<input type="file" id="arquivoCenarios" accept="application/json,.json" style="display:none">'+
     '<div class="cartao-titulo" style="margin-top:4px">Cenários por escopo</div>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'+
     '<button class="btn" data-acao="cenarioEscopo" data-escopo="base" data-testid="btn-escopo-base">Operação atual</button>'+
@@ -1904,7 +1907,10 @@ function painelCenarios(){
     'O <b>link editável</b> abre com os controles ativos: quem recebe pode explorar variações a partir do seu cenário. '+
     'O <b>link travado</b> abre somente leitura, com os controles bloqueados, mostrando exatamente os números que você calculou. '+
     'Nos dois casos aparece a faixa com a data do compartilhamento e o aviso de projeção gerencial.<br><br>'+
-    'Os cenários salvos abaixo ficam disponíveis enquanto esta janela estiver aberta.</div>';
+    'Os cenários salvos abaixo ficam disponíveis enquanto esta janela estiver aberta. '+
+    'Para guardar de forma permanente, use <b>Baixar cenários</b> — o navegador pergunta onde salvar o arquivo. '+
+    '<b>Carregar cenários</b> traz o arquivo de volta e recalcula os resultados com o modelo atual, '+
+    'o que permite comparar cenários antigos contra premissas novas.</div>';
   h += '<div id="linkGerado"></div></div>';
 
   if(!CENARIOS.length){
@@ -2183,7 +2189,9 @@ document.addEventListener('change', function(e){
 });
 
 function executarAcao(acao, el){
-  if(acao==='fecharGavetas'){ fecharGavetas(); }
+  if(acao==='baixarCenarios'){ baixarCenarios(); }
+  else if(acao==='carregarCenarios'){ carregarCenarios(); }
+  else if(acao==='fecharGavetas'){ fecharGavetas(); }
   else if(acao==='resetOpex'){ S.opexCustom = null; render(); }
   else if(acao==='resetCurva'){ S.fCli = F_CLI_PADRAO.slice(); S.fTk = F_TK_PADRAO.slice(); render(); }
   else if(acao==='salvarCenario'){ abrirModalSalvar(); }
@@ -2223,6 +2231,68 @@ function salvarCenario(){
   fecharModalSalvar();
   abaAtiva = 'cenarios';
   render();
+}
+
+/* ---------- Cenários em arquivo ---------- */
+
+function baixarCenarios(){
+  if(!CENARIOS.length){ alert('Não há cenários salvos para baixar. Salve pelo menos um cenário antes.'); return; }
+  var pacote = {
+    formato: 'brosbnk-cenarios',
+    versao: 1,
+    geradoEm: new Date().toISOString(),
+    referencia: REF_ROTULO,
+    cenarios: CENARIOS.map(function(c){
+      return { nome:c.nome, estado:c.estado, criadoEm:c.criadoEm };   // resultados são recalculados ao carregar
+    })
+  };
+  var blob = new Blob([JSON.stringify(pacote, null, 2)], {type:'application/json'});
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href = url;
+  a.download = 'BROSBNK_cenarios_' + new Date().toISOString().slice(0,10) + '.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+}
+
+function carregarCenarios(){
+  var inp = document.getElementById('arquivoCenarios');
+  if(!inp) return;
+  inp.value = '';
+  inp.onchange = function(){
+    var arq = inp.files && inp.files[0];
+    if(!arq) return;
+    var leitor = new FileReader();
+    leitor.onload = function(){
+      var pacote;
+      try { pacote = JSON.parse(leitor.result); }
+      catch(e){ alert('Arquivo inválido: não é um JSON legível.'); return; }
+      if(!pacote || pacote.formato !== 'brosbnk-cenarios' || !pacote.cenarios || !pacote.cenarios.length){
+        alert('Arquivo inválido: não parece ser um arquivo de cenários do simulador.'); return;
+      }
+      var novos = 0;
+      pacote.cenarios.forEach(function(c){
+        if(!c || !c.estado) return;
+        var base = estadoPadrao();
+        for(var k in c.estado){ if(c.estado.hasOwnProperty(k)) base[k] = c.estado[k]; }   // tolera arquivos antigos
+        CENARIOS.push({ nome: c.nome || ('Cenário '+(CENARIOS.length+1)),
+                        estado: base,
+                        m: calcularCom(base),
+                        criadoEm: c.criadoEm || dataHoraBR() });
+        novos++;
+      });
+      if(pacote.referencia){
+        var ref = CENARIOS.filter(function(c){ return c.nome === pacote.referencia; })[0];
+        if(ref) definirReferencia(ref.estado, ref.nome);
+      }
+      abaAtiva = 'cenarios';
+      render();
+      alert(novos + (novos === 1 ? ' cenário carregado.' : ' cenários carregados.') +
+            ' Os resultados foram recalculados com o modelo atual.');
+    };
+    leitor.readAsText(arq);
+  };
+  inp.click();
 }
 
 function codificar(obj){
