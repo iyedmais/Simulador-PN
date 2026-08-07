@@ -366,7 +366,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.07-6</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.07-8</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -692,7 +692,7 @@ function calcular(){
 
   // 5.8 — sensibilidade
   m.sensibilidade = [];
-  for(var mult=6; mult<=16; mult+=2){
+  for(var mult=6; mult<=12; mult+=2){
     var val = m.ebitdaAno5 * mult, part = val * S.pctVendido;
     var mt = m.investTotal > 0 ? part/m.investTotal : 0;
     m.sensibilidade.push({
@@ -989,7 +989,7 @@ var TIPS = {
 
   valuation: function(){ return '<b>Valuation na saída</b><br><br>Quanto a empresa valeria no momento em que o investidor vende sua participação. O critério usado é multiplicar o resultado operacional do último ano por um número de referência de mercado.'+
     '<span class="tip-form">Ano 5: '+fmtMi(M.ebitdaAno5)+' × '+fmtX(S.multiploSaida,0)+'</span>'+
-    '<b>'+fmtMi(M.valuation)+'</b><br><br>O múltiplo é ilustrativo. A aba Sensibilidade mostra de 6x a 16x.'; },
+    '<b>'+fmtMi(M.valuation)+'</b><br><br>O múltiplo é ilustrativo. A aba Sensibilidade mostra de 6x a 12x.'; },
 
   participacao: function(){ return '<b>Valor da participação</b><br><br>Quanto vale a fatia do investidor no momento da saída.'+
     '<span class="tip-form">'+fmtMi(M.valuation)+' × '+fmtPct(S.pctVendido,0)+'</span>'+
@@ -1058,7 +1058,7 @@ var CONTROLES = [
 
   {g:'saida', k:'aporteP',      rot:'Aporte primário (R$ mi)',          min:0,    max:60,    passo:0.5, tipo:'dec', modo:'avancado', tipRef:'aporte'},
   {g:'saida', k:'aporteS',      rot:'Aporte secundário (R$ mi)',        min:0,    max:60,    passo:0.5, tipo:'dec', modo:'avancado', tipRef:'aporte'},
-  {g:'saida', k:'multiploSaida',rot:'Múltiplo de saída',                min:6,    max:16,    passo:1,   tipo:'mult0', modo:'ambos',  tipRef:'valuation'},
+  {g:'saida', k:'multiploSaida',rot:'Múltiplo de saída',                min:6,    max:12,    passo:1,   tipo:'mult0', modo:'ambos',  tipRef:'valuation'},
   {g:'saida', k:'pctVendido',   rot:'Participação vendida',             min:10,   max:35,    passo:1,   tipo:'pct', modo:'ambos',    tipRef:'participacao'},
   {g:'saida', k:'taxaDesconto', rot:'Taxa de desconto (p/ LTV descontado)', min:0, max:30,   passo:1,   tipo:'pct', modo:'ambos',    tipRef:'descontado'}
 ];
@@ -1890,7 +1890,7 @@ function painelSensibilidade(){
             cor: l.multiplo===Math.round(S.multiploSaida) ? '#0C4E54' : '#7FB6BC'};
   });
   h += '<div class="cartao"><div class="cartao-titulo">MOIC por múltiplo '+htmlAjuda('moic')+'</div>'+graficoBarras(barras,{h:230})+
-       '<div class="legenda"><span>MOIC sobre o total desembolsado de '+fmtMi(M.investTotal)+'.</span></div></div>';
+       '<div class="legenda"><span>MOIC sobre o total desembolsado de '+fmtMi(M.investTotal)+'. Faixa de 6x a 12x.</span></div></div>';
   return h;
 }
 
