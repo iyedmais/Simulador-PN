@@ -380,7 +380,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.07-10</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.07-12</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -497,7 +497,7 @@ function estadoPadrao(){
     // Cripto
     criptoOn:false, tpvCripto5:3.30, takeCripto:0.0045, custoLiqCripto:0.0010,
     // Licença própria
-    licencaOn:false, ganhoCripto:0.0010, ganhoComex:0.0000,
+    licencaOn:false, mesLicenca:1, ganhoCripto:0.0010, ganhoComex:0.0000,
     // Custos e estrutura
     custoProvedores:0.0045, aliquota:0.080, multOpex:1.00, cac:900,
     opexCustom:null,
@@ -559,6 +559,22 @@ function dataHoraBR(dt){
 
 /* ---------- 4. Modelo de cálculo (seção 5 da especificação) ---------- */
 
+/* A licença passa a valer no mês informado (1 a 60, contados do início do Ano 1).
+   No ano em que ela sai, o ganho vale só pelos meses restantes. */
+function mesLicencaValido(){
+  var m = parseInt(S.mesLicenca, 10);
+  if(!isFinite(m) || m < 1) m = 1;
+  if(m > 60) m = 60;
+  return m;
+}
+function fracaoLicencaAno(i){          // i = 0..4
+  var m = mesLicencaValido();
+  var inicio = i*12 + 1, fim = (i+1)*12;
+  if(m > fim) return 0;                // ainda não saiu
+  if(m <= inicio) return 1;            // já vigorava o ano inteiro
+  return (fim - m + 1) / 12;           // ano parcial
+}
+
 function opexBaseAno(i){                       // i = 0..4, resultado em R$ milhões
   var soma = 0;
   for(var k=0;k<OPEX_CATEGORIAS.length;k++){
@@ -619,7 +635,8 @@ function calcular(){
                         : (c.clientesMPE + c.clientesMed);
     c.novosRem      = 0;   // remessas não geram aquisição própria
     c.gtm           = (c.novosComex * S.cac) / 1e6;
-    c.ganhoLicenca  = S.licencaOn ? (c.tpvCripto*1000*S.ganhoCripto + c.tpvComex*1000*S.ganhoComex) : 0;
+    c.fracLicenca   = S.licencaOn ? fracaoLicencaAno(i) : 0;
+    c.ganhoLicenca  = c.fracLicenca * (c.tpvCripto*1000*S.ganhoCripto + c.tpvComex*1000*S.ganhoComex);
     c.ebitda        = c.margemContrib - c.opex - c.gtm + c.ganhoLicenca;
     c.margemEbitda  = c.receitaBruta > 0 ? c.ebitda / c.receitaBruta : 0;
     c.margemPorCliente = c.totalClientes > 0 ? c.margemContrib * 1e6 / c.totalClientes : 0;
@@ -993,6 +1010,13 @@ var TIPS = {
     'A empresa não troca de banco: a BROSBNK fica com uma parte do fluxo dela. Quanto maior o cliente, menor tende a ser essa fatia, porque ele tem mesa de câmbio, gerente dedicado e poder de negociação.<br><br>'+
     'A carteira também define o universo de médias: '+fmtBi(MERCADO.samComexMedias.valor,1)+' ÷ '+fmtMil(S.carteiraMed)+' = <b>'+fmtInt(M.universoMed)+' empresas</b>.'; },
 
+  mesLicenca: function(){ return '<b>Mês de obtenção da licença</b><br><br>'+
+    'Em que mês do horizonte de cinco anos a licença própria passa a operar. O mês 1 é o primeiro mês do Ano 1; o mês 60, o último do Ano 5.<br><br>'+
+    'O ganho só é contabilizado a partir daí. No ano em que a licença sai, ele vale pelos meses restantes — não pelo ano inteiro.'+
+    '<span class="tip-form">Ganho do ano = vigência no ano × (volume × percentual de ganho)</span>'+
+    'Ganho no Ano 5: <b>'+fmtMi(M.a5.ganhoLicenca,3)+'</b> · acumulado em cinco anos: <b>'+fmtMi(M.acum.ganhoLicenca,3)+'</b><br><br>'+
+    'Esse valor <b>já está incluído no EBITDA</b> — não é receita adicional a somar depois.'; },
+
   freteSeguro: function(){ return '<b>Frete e seguro sobre o TPV COMEX</b><br><br>'+
     'Toda operação de comércio exterior carrega frete e seguro internacionais, pagos ao exterior. É despesa da própria importação, não um serviço à parte.'+
     '<span class="tip-form">'+fmtPct(FRETE_PCT,1)+' de frete + '+fmtPct(SEGURO_PCT,1)+' de seguro = '+fmtPct(pctFreteSeguro(),1)+' do TPV de COMEX</span>'+
@@ -1072,6 +1096,8 @@ var CONTROLES = [
   {g:'cripto',k:'takeCripto',   rot:'Take rate cripto',                 min:0.20, max:1.00,  passo:0.01, tipo:'pct', modo:'ambos',   tipRef:'take'},
   {g:'cripto',k:'custoLiqCripto',rot:'Custo de liquidez cripto',        min:0.00, max:0.50,  passo:0.01, tipo:'pct', modo:'ambos',   tip:'O que se paga para manter dinheiro disponível nas duas pontas da operação com ativos digitais, de modo que a troca possa acontecer na hora.'},
 
+  {g:'lic',   k:'mesLicenca',   rot:'Mês de obtenção da licença',       min:1,    max:60,    passo:1,   tipo:'int', modo:'ambos',   tipRef:'mesLicenca',
+   nota:function(){ return notaMesLicenca(); }},
   {g:'lic',   k:'ganhoCripto',  rot:'Ganho na vertical cripto',         min:0.00, max:0.30,  passo:0.01, tipo:'pct', modo:'ambos',   tipRef:'licenca'},
   {g:'lic',   k:'ganhoComex',   rot:'Ganho na vertical COMEX',          min:0.00, max:0.30,  passo:0.01, tipo:'pct', modo:'ambos',   tipRef:'licenca',
    nota:'Extensão em estudo — pagamentos a parceiros liquidados em stablecoin. Número ainda não apurado.'},
@@ -1114,6 +1140,11 @@ function notaTicketMPE(){
               ', e a captura ' + fmtPct(S.tkMPE5/cBruta, 0) + '.'
             : ' — soma bruta, sem deduplicação.') + '</span>';
 }
+function notaMesLicenca(){
+  if(!M || !M.ano) return '';
+  return 'Licença vigente a partir do <b>mês ' + mesLicencaValido() + '</b>.<br><b>Já incluído no EBITDA.</b>';
+}
+
 function notaTicketRem(){
   if(!M || !M.a5) return '';
   return 'Volume que passa pela plataforma: <b>' + fmtBi(M.a5.tpvRem) + ' no Ano 5</b> — ' +
@@ -2245,6 +2276,12 @@ function atualizarLeve(c, el){
     if(nRem) nRem.innerHTML = notaTicketRem();
   }
 
+  // nota do mês de obtenção da licença
+  if(c.k === 'mesLicenca'){
+    var nLic = document.querySelector('[data-testid="nota-mesLicenca"]');
+    if(nLic) nLic.innerHTML = notaMesLicenca();
+  }
+
   // nota derivada da captura das médias
   if(c.k === 'capturaMedIn' || c.k === 'carteiraMed'){
     var nt = document.querySelector('[data-testid="nota-capturaMedIn"]');
@@ -2551,6 +2588,7 @@ function premissasLista(){
     ['Take rate cripto', S.takeCripto],
     ['Custo de liquidez cripto', S.custoLiqCripto],
     ['Licença própria ligada', S.licencaOn?'Sim':'Não'],
+    ['Mês de obtenção da licença', mesLicencaValido()],
     ['Ganho de licença na vertical cripto', S.ganhoCripto],
     ['Ganho de licença na vertical COMEX', S.ganhoComex],
     ['Custo com provedores', S.custoProvedores],
@@ -2783,7 +2821,7 @@ function exportarPdf(){
   corpo.push(ln('Margem de contribuição (R$ mi)','margemContrib'));
   corpo.push(ln('OPEX (R$ mi)','opex',3));
   corpo.push(ln('GTM (R$ mi)','gtm',3));
-  if(S.licencaOn) corpo.push(ln('Ganho de licença (R$ mi)','ganhoLicenca',3));
+  if(S.licencaOn) corpo.push(ln('Ganho de licença (R$ mi) — a partir do mês '+mesLicencaValido(),'ganhoLicenca',3));
   corpo.push(ln('EBITDA (R$ mi)','ebitda'));
   corpo.push(['Margem EBITDA'].concat(M.ano.map(function(o){ return fmtPct(o.margemEbitda,1); })).concat([fmtPct(M.acum.margemEbitda,1)]));
 
