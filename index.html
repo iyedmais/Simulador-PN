@@ -383,7 +383,7 @@ details.ajuda-bloco .conteudo{font-size:12.5px; color:#6B7574; line-height:1.55;
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.08-5</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.08-9</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -456,26 +456,61 @@ var MERCADO = {
   tamRemessas:     { valor:828,    fonte:'BCB, Balanço de Pagamentos 2025 — US$ 146,1 bi × 5,67, visão conservadora' },
   tamRemessasPjMin:{ valor:621,    fonte:'75–80% do total, estimativa por rubrica' },
   tamRemessasPjMax:{ valor:663,    fonte:'75–80% do total, estimativa por rubrica' },
+  partImportacao:  { valor:0.4455, fonte:'MDIC/SECEX 2025 — US$ 280,4 bi de importação em US$ 629,4 bi de corrente de comércio' },
+  partImpMpe:      { valor:0.6330, fonte:'MDIC/SECEX, relatório por porte fiscal — US$ 4.777,8 mi de importação em US$ 7.547,5 mi, por diferença da exportação publicada' },
+  partImpMed:      { valor:0.4455, fonte:'ESTIMADA — o MDIC agrega médias com grandes e a Funcex/RBCE 137 não separa; adotado o nacional como piso' },
   tamCripto:       { valor:505.5,  fonte:'Receita Federal 2025' },
   samCripto:       { valor:404,    fonte:'recorte' }
 };
 
 /* Aporte da rodada. Editáveis no modo Avançado (S.aporteP e S.aporteS).
    As funções abaixo são a única forma de ler esses valores no resto do código. */
-/* Frete e seguro internacionais acompanham toda operação de comércio exterior.
-   Premissa fixa e aritmética: 7,0% de frete + 0,5% de seguro sobre o TPV de COMEX.
-   Não há base de clientes própria — é o mesmo importador pagando o frete. */
+/* Frete e seguro internacionais: 7,0% de frete + 0,5% de seguro.
+   Não há base de clientes própria — é o mesmo importador pagando o frete.
+
+   A base NÃO é o COMEX inteiro. Na exportação brasileira, majoritariamente FOB,
+   quem contrata e paga o frete é o comprador no exterior — o dinheiro nem passa
+   pelo Brasil. Na importação é o contrário: o frete e o seguro são declarados à
+   aduana e pagos por quem está aqui. É por isso que a estatística brasileira só
+   registra VL_FRETE e VL_SEGURO na importação; na exportação esses campos não
+   existem. Logo, os 7,5% se aplicam à parcela importadora do fluxo. */
 var FRETE_PCT  = 0.070;
 var SEGURO_PCT = 0.005;
 function pctFreteSeguro(){ return FRETE_PCT + SEGURO_PCT; }
+/* A parcela importadora não é a mesma nos dois segmentos, e usar uma taxa só
+   para os dois é assumir que a composição é igual — o que não é.
+
+   MPE: reconstituída. O SAM de US$ 7.547,5 mi do plano é exportação + importação
+   das micro e pequenas. A exportação está publicada (Micro e MEI US$ 1.001,8 mi +
+   EPP US$ 1.767,9 mi = US$ 2.769,7 mi), então a importação é US$ 4.777,8 mi por
+   diferença — 63,30% do total. Coerente com a contagem: 30.200 importadoras
+   contra 11.822 exportadoras.
+
+   Médias: NÃO documentada. O SAM de R$ 99,1 bi vem da Funcex/RBCE 137 e o MDIC
+   agrega médias com grandes, então não há como isolar. Fica no nacional de
+   44,55% como piso conservador, explicitamente uma estimativa.
+
+   Nacional (44,55%) segue valendo para o TAM, que é o Brasil inteiro. */
+var PART_IMP_NACIONAL = 0.4455;   // US$ 280,4 bi de US$ 629,4 bi — MDIC/SECEX 2025
+var PART_IMP_MPE_PADRAO = 0.6330; // reconstituída do relatório por porte fiscal
+var PART_IMP_MED_PADRAO = 0.4455; // ESTIMADA — sem fonte que isole as médias
+function partImpMpe(){ return (S && isFinite(S.partImpMpe)) ? S.partImpMpe : PART_IMP_MPE_PADRAO; }
+function partImpMed(){ return (S && isFinite(S.partImpMed)) ? S.partImpMed : PART_IMP_MED_PADRAO; }
+/* Parcela importadora média da carteira, ponderada pelo volume de cada segmento. */
+function partImpCarteira(){
+  var a = M && M.a5 ? M.a5.tpvComexMPE : 0, b = M && M.a5 ? M.a5.tpvComexMed : 0;
+  return (a + b) > 0 ? (a*partImpMpe() + b*partImpMed()) / (a + b) : partImpMpe();
+}
 
 /* Mercado de frete e seguro. Não é a conta de serviços do Balanço de Pagamentos —
    é a fatia que o próprio comércio exterior gera, pela mesma aritmética de 7,5%.
    Derivado, não digitado: acompanha qualquer revisão do TAM/SAM de COMEX.
    Os números de remessas continuam em MERCADO e vivem no tooltip, como referência
    do mercado maior em que frete e seguro estão contidos. */
-function tamFreteSeguro(){ return MERCADO.tamComex.valor * pctFreteSeguro(); }
-function samFreteSeguro(){ return (MERCADO.samComexMpe.valor + MERCADO.samComexMedias.valor) * pctFreteSeguro(); }
+function tamFreteSeguro(){ return MERCADO.tamComex.valor * PART_IMP_NACIONAL * pctFreteSeguro(); }
+function samFreteSeguroMpe(){ return MERCADO.samComexMpe.valor    * partImpMpe() * pctFreteSeguro(); }
+function samFreteSeguroMed(){ return MERCADO.samComexMedias.valor * partImpMed() * pctFreteSeguro(); }
+function samFreteSeguro(){ return samFreteSeguroMpe() + samFreteSeguroMed(); }
 
 var APORTE_PRIMARIO_PADRAO   = 12;   // R$ milhões
 var APORTE_SECUNDARIO_PADRAO =  5;   // R$ milhões
@@ -515,7 +550,7 @@ function estadoPadrao(){
     clientesMed5:600, tkMed5:1050, takeComex:0.0145,
     carteiraMed:4200, capturaMedIn:0.25, takeMed:0.0120,
     // Remessas
-    remessasOn:true, capturaRem:0.50, takeRem:0.0145,
+    remessasOn:false, partImpMpe:PART_IMP_MPE_PADRAO, partImpMed:PART_IMP_MED_PADRAO, capturaRem:0.50, takeRem:0.0145,
     // Cripto
     criptoOn:false, tpvCripto5:3.30, takeCripto:0.0045, custoLiqCripto:0.0010,
     // Licença própria
@@ -659,7 +694,8 @@ function calcular(){
     o.tpvComexMed = o.clientesMed * o.tkMed / 1e6;
     o.tpvComex    = o.tpvComexMPE + o.tpvComexMed;
     // Remessas derivam do próprio COMEX: frete + seguro, capturados em parte.
-    o.tpvFreteSeguro = o.tpvComex * pctFreteSeguro();
+    o.tpvImportacao  = o.tpvComexMPE * partImpMpe() + o.tpvComexMed * partImpMed();
+    o.tpvFreteSeguro = o.tpvImportacao * pctFreteSeguro();
     o.tpvRem      = S.remessasOn ? o.tpvFreteSeguro * S.capturaRem : 0;
     o.clientesRem = 0;   // não há base própria: são os mesmos clientes de COMEX
     o.tkRem       = 0;
@@ -733,7 +769,7 @@ function calcular(){
   }
 
   // acumulados
-  var chaves = ['tpvComex','tpvFreteSeguro','tpvRem','tpvCripto','tpvTotal','receitaComex','receitaComexMPE','receitaComexMed','receitaRem','receitaCripto',
+  var chaves = ['tpvComex','tpvImportacao','tpvFreteSeguro','tpvRem','tpvCripto','tpvTotal','receitaComex','receitaComexMPE','receitaComexMed','receitaRem','receitaCripto',
                 'receitaBruta','custoFiat','custoCripto','custoExecucao','tributos','margemContrib',
                 'opex','gtm','ganhoLicenca','ebitda'];
   m.acum = {};
@@ -845,10 +881,10 @@ function premissasRef(){
   var e = REF_ESTADO;
   var t = 'COMEX ' + fmtInt(e.clientesMPE5) + ' × ' + fmtMil(e.tkMPE5) +
           ' + ' + fmtInt(e.clientesMed5) + ' × ' + fmtMil(e.tkMed5) +
-          ' · frete e seguro ' + fmtPct(pctFreteSeguro(),1) + ' com captura de ' + fmtPct(e.capturaRem,0) +
           ' · provedores ' + fmtPct(e.custoProvedores,2) +
           ' · CAC ' + fmtRS(e.cac) +
           ' · churn ' + fmtPct(e.churn,1);
+  if(e.remessasOn) t += ' · frete e seguro ligado (' + fmtPct(pctFreteSeguro(),1) + ' sobre importação, captura de ' + fmtPct(e.capturaRem,0) + ')';
   if(e.criptoOn)  t += ' · cripto ligada';
   if(e.licencaOn) t += ' · licença própria ligada';
   return '<span style="color:#8A9392">' + t + '</span>';
@@ -1059,13 +1095,25 @@ var TIPS = {
     'Ganho no Ano 5: <b>'+fmtMi(M.a5.ganhoLicenca,3)+'</b> · acumulado em cinco anos: <b>'+fmtMi(M.acum.ganhoLicenca,3)+'</b><br><br>'+
     'Esse valor <b>já está incluído no EBITDA</b> — não é receita adicional a somar depois.'; },
 
-  freteSeguro: function(){ return '<b>Frete e seguro sobre o TPV COMEX</b><br><br>'+
+  partImp: function(){ return '<b>Parcela importadora do COMEX</b><br><br>'+
+    'Que fatia do fluxo de comércio exterior gera frete e seguro pagos daqui.<br><br>'+
+    'Na exportação brasileira, majoritariamente FOB, quem contrata e paga o frete é o comprador no exterior — o dinheiro não passa pelo Brasil e a plataforma não tem o que executar. Na importação é o oposto: frete e seguro são declarados à aduana e pagos por quem está aqui. Não é coincidência que a estatística oficial só tenha os campos VL_FRETE e VL_SEGURO no arquivo de importação; no de exportação eles não existem.'+
+    '<span class="tip-form">MPE: '+fmtPct(partImpMpe(),1)+' &nbsp;·&nbsp; médias: '+fmtPct(partImpMed(),1)+' &nbsp;·&nbsp; carteira: '+fmtPct(partImpCarteira(),1)+'</span>'+
+    '<b>MPE — '+fmtPct(partImpMpe(),1)+', reconstituída</b><br>'+
+    'O SAM de micro e pequenas do plano é US$ 7.547,5 mi somando exportação e importação. A exportação está publicada: US$ 1.001,8 mi de microempresas e MEI mais US$ 1.767,9 mi de EPP, US$ 2.769,7 mi ao todo. A importação é o resto, US$ 4.777,8 mi. Bate com a contagem de empresas: 30.200 importadoras contra 11.822 exportadoras.<br><br>'+
+    '<b>Médias — '+fmtPct(partImpMed(),1)+', estimada</b><br>'+
+    'Aqui não há fonte. O MDIC publica médias junto com grandes, e as grandes exportadoras de commodities distorcem qualquer leitura. A Funcex/RBCE 137, de onde vêm os R$ 99,1 bi, não separa importação de exportação. Fica o nacional de '+fmtPct(PART_IMP_NACIONAL,1)+' como piso, e é o número mais frágil do cartão — ele responde por dois terços do SAM.'+
+    '<span class="tip-fonte">MPE: '+MERCADO.partImpMpe.fonte+'<br>Médias: '+MERCADO.partImpMed.fonte+'</span>'; },
+
+  freteSeguro: function(){ return '<b>Frete e seguro sobre a importação</b><br><br>'+
     'Toda operação de comércio exterior carrega frete e seguro internacionais, pagos ao exterior. É despesa da própria importação, não um serviço à parte.'+
-    '<span class="tip-form">'+fmtPct(FRETE_PCT,1)+' de frete + '+fmtPct(SEGURO_PCT,1)+' de seguro = '+fmtPct(pctFreteSeguro(),1)+' do TPV de COMEX</span>'+
-    'Ano 5: '+fmtBi(M.a5.tpvComex)+' de COMEX geram <b>'+fmtBi(M.a5.tpvFreteSeguro)+'</b> de frete e seguro. Com captura de '+fmtPct(S.capturaRem,0)+', passam pela plataforma <b>'+fmtBi(M.a5.tpvRem)+'</b>.<br><br>'+
+    '<span class="tip-form">'+fmtPct(FRETE_PCT,1)+' de frete + '+fmtPct(SEGURO_PCT,1)+' de seguro = '+fmtPct(pctFreteSeguro(),1)+', aplicados sobre a importação de cada segmento — '+fmtPct(partImpMpe(),1)+' do TPV de MPE e '+fmtPct(partImpMed(),1)+' do TPV de médias</span>'+
+    'Ano 5: '+fmtBi(M.a5.tpvComex)+' de COMEX, dos quais '+fmtBi(M.a5.tpvImportacao)+' de importação ('+fmtPct(partImpCarteira(),1)+' da carteira), geram <b>'+fmtBi(M.a5.tpvFreteSeguro)+'</b> de frete e seguro. Com captura de '+fmtPct(S.capturaRem,0)+', passam pela plataforma <b>'+fmtBi(M.a5.tpvRem)+'</b>.<br><br>'+
     'O percentual é premissa fixa e aritmética. O que se decide é quanto desse fluxo a BROSBNK executa — e são os mesmos clientes de COMEX, sem aquisição adicional.'+
-    '<span class="tip-form">TAM: '+fmtPct(pctFreteSeguro(),1)+' × '+fmtBi(MERCADO.tamComex.valor,0)+' de COMEX = '+fmtBi(tamFreteSeguro(),0)+'<br>'+
-    'SAM: '+fmtPct(pctFreteSeguro(),1)+' × '+fmtBi(MERCADO.samComexMpe.valor+MERCADO.samComexMedias.valor,0)+' de COMEX de MPE e médias = '+fmtBi(samFreteSeguro(),1)+'</span>'+
+    '<span class="tip-form">TAM: '+fmtBi(MERCADO.tamComex.valor,0)+' × '+fmtPct(PART_IMP_NACIONAL,1)+' × '+fmtPct(pctFreteSeguro(),1)+' = '+fmtBi(tamFreteSeguro(),0)+'<br>'+
+    'SAM MPE: '+fmtBi(MERCADO.samComexMpe.valor,1)+' × '+fmtPct(partImpMpe(),1)+' × '+fmtPct(pctFreteSeguro(),1)+' = '+fmtBi(samFreteSeguroMpe(),2)+'<br>'+
+    'SAM médias: '+fmtBi(MERCADO.samComexMedias.valor,1)+' × '+fmtPct(partImpMed(),1)+' × '+fmtPct(pctFreteSeguro(),1)+' = '+fmtBi(samFreteSeguroMed(),2)+'<br>'+
+    'SAM total = '+fmtBi(samFreteSeguro(),2)+'</span>'+
     '<b>Por que não usamos o mercado de remessas</b><br>'+
     'Frete e seguro pagos ao exterior entram na conta de serviços do Balanço de Pagamentos, junto com royalties, viagens, licenças e tudo mais. Esse mercado é de '+fmtBi(MERCADO.tamRemessas.valor,0)+' no total e '+fmtBi(MERCADO.tamRemessasPjMin.valor,0)+'–'+fmtBi(MERCADO.tamRemessasPjMax.valor,0)+' em pessoa jurídica. Medir a penetração contra ele infla o denominador com fluxos que a BROSBNK não disputa e faz o número parecer pequeno por construção.'+
     '<span class="tip-fonte">Referência do mercado maior: '+MERCADO.tamRemessas.fonte+'</span>'; },
@@ -1136,6 +1184,8 @@ var CONTROLES = [
   {g:'comexmed', k:'capturaMedIn', rot:'Captura da carteira',           min:5,    max:100,   passo:1,   tipo:'pct', modo:'ambos',    tipRef:'carteiraMed', nota:function(){ return 'Ticket que passa pela plataforma: <b>'+fmtMil(S.carteiraMed*S.capturaMedIn)+' por ano</b> — '+fmtPct(S.capturaMedIn,0)+' da carteira de '+fmtMil(S.carteiraMed)+'.'; }},
   {g:'comexmed', k:'takeMed',      rot:'Take rate cobrada',             min:0.50, max:2.00,  passo:0.01, tipo:'pct', modo:'ambos',    tipRef:'takeMed'},
 
+  {g:'rem',   k:'partImpMpe',   rot:'Parcela importadora — MPE',        min:20,   max:100,   passo:1,   tipo:'pct', modo:'avancado', tipRef:'partImp'},
+  {g:'rem',   k:'partImpMed',   rot:'Parcela importadora — médias',     min:20,   max:100,   passo:1,   tipo:'pct', modo:'avancado', tipRef:'partImp'},
   {g:'rem',   k:'capturaRem',   rot:'Captura do frete e seguro',        min:0,    max:100,   passo:1,   tipo:'pct', modo:'ambos',    tipRef:'freteSeguro', antes:function(){ return blocoFreteSeguro(); }, nota:function(){ return notaTicketRem(); }},
   {g:'rem',   k:'takeRem',      rot:'Take rate cobrada',                min:0.80, max:2.00,  passo:0.01, tipo:'pct', modo:'ambos',    tipRef:'take'},
 
@@ -1195,7 +1245,7 @@ function notaMesLicenca(){
 function notaTicketRem(){
   if(!M || !M.a5) return '';
   return 'Volume que passa pela plataforma: <b>' + fmtBi(M.a5.tpvRem) + ' no Ano 5</b> — ' +
-         fmtPct(S.capturaRem,0) + ' de ' + fmtBi(M.a5.tpvFreteSeguro) + ' de frete e seguro gerados pelo próprio COMEX.' +
+         fmtPct(S.capturaRem,0) + ' de ' + fmtBi(M.a5.tpvFreteSeguro) + ' de frete e seguro gerados pela própria importação da carteira.' +
          '<br><span style="opacity:.75">Sem base de clientes própria e sem CAC: são os mesmos importadores e exportadores já contabilizados em COMEX.</span>';
 }
 
@@ -1235,9 +1285,9 @@ function htmlAjuda(ref){ return '<button class="ajuda" data-tip="'+ref+'" aria-l
 /* Premissa fixa de frete e seguro, exibida acima do controle de captura. */
 function blocoFreteSeguro(){
   return '<div class="ctl" style="--cor-vertical:'+CORES.remessas+'" data-testid="premissa-frete-seguro">'+
-    '<div class="ctl-topo"><span class="ctl-rot">Frete e seguro sobre o TPV COMEX</span>'+
+    '<div class="ctl-topo"><span class="ctl-rot">Frete e seguro sobre a importação</span>'+
     htmlAjuda('freteSeguro')+'<span class="ctl-val">'+fmtPct(pctFreteSeguro(),1)+'</span></div>'+
-    '<div style="font-size:11.5px;color:#8A9392;margin-top:2px">'+fmtPct(FRETE_PCT,1)+' de frete + '+fmtPct(SEGURO_PCT,1)+' de seguro — premissa fixa, não editável</div>'+
+    '<div style="font-size:11.5px;color:#8A9392;margin-top:2px">'+fmtPct(FRETE_PCT,1)+' de frete + '+fmtPct(SEGURO_PCT,1)+' de seguro — premissa fixa. Não incide sobre a exportação: lá o frete é pago pelo comprador no exterior.</div>'+
     '</div>';
 }
 
@@ -1305,7 +1355,7 @@ function renderControles(){
         h += '<div class="aviso aviso-info" data-testid="aviso-med-off">Vertical desligada: o cenário passa a considerar apenas micro e pequenas em COMEX.</div>';
       }
       if(gr.id==='rem' && !ligado){
-        h += '<div class="aviso aviso-ambar" data-testid="aviso-remessas-off">Vertical desligada: o cenário passa a ser somente COMEX. Frete e seguro respondem por parte relevante do TPV.</div>';
+        h += '<div class="aviso aviso-info" data-testid="aviso-remessas-off">Fora do caso-base, por decisão. Depois de restringir a base à parcela importadora, a vertical acrescenta R$ 1,05 mi de receita e R$ 0,64 mi de EBITDA no Ano 5 — 0,08x de MOIC, pouco para o espaço que ocupa na narrativa. No plano ela aparece como receita não modelada. Ligue para dimensionar o potencial.</div>';
       }
     }
     if(ligado){
@@ -1578,7 +1628,8 @@ function renderKpis(){
 }
 
 function narrativa(){
-  var partes = ['COMEX', 'frete e seguro'];
+  var partes = ['COMEX'];
+  if(S.remessasOn) partes.push('frete e seguro');
   if(S.criptoOn) partes.push('cripto');
   var lista = partes.length>2 ? partes.slice(0,-1).join(', ')+' e '+partes[partes.length-1] : partes.join(' e ');
   return 'No Ano 5 o plano projeta <strong>'+fmtInt(M.a5.totalClientes)+' clientes</strong> movimentando '+
@@ -1586,7 +1637,9 @@ function narrativa(){
     '<strong>'+fmtMi(M.a5.receitaBruta)+'</strong> de receita bruta e '+
     '<strong>'+fmtMi(M.a5.ebitda)+'</strong> de EBITDA, uma margem de <strong>'+fmtPct(M.a5.margemEbitda,1)+'</strong>. '+
     (M.breakEven ? 'A operação passa a se sustentar sozinha dentro do <strong>Ano '+M.breakEven+'</strong>. ' : 'A operação não atinge break-even dentro dos cinco anos neste cenário. ')+
-    'O resultado vem de '+lista+' operando sobre a mesma base de clientes: é a <strong>orquestração</strong> — coordenar vários provedores, moedas e rotas de pagamento por trás de uma interface única, escolhendo o melhor caminho para cada operação sem que o cliente precise saber disso — que permite somar verticais sem somar estrutura. '+
+    (partes.length > 1
+      ? 'O resultado vem de '+lista+' operando sobre a mesma base de clientes: é a <strong>orquestração</strong> — coordenar vários provedores, moedas e rotas de pagamento por trás de uma interface única, escolhendo o melhor caminho para cada operação sem que o cliente precise saber disso — que permite somar verticais sem somar estrutura. '
+      : 'Todo o resultado vem de COMEX, e é assim de propósito: o caso-base se sustenta numa vertical só. A <strong>orquestração</strong> — coordenar vários provedores, moedas e rotas de pagamento por trás de uma interface única, escolhendo o melhor caminho para cada operação sem que o cliente precise saber disso — é a mesma infraestrutura que permitirá somar frete e seguro, cripto e licença própria sem somar estrutura. Nenhuma dessas receitas está projetada aqui. ')+
     (S.licencaOn ? 'A licença própria acrescenta '+fmtMi(M.a5.ganhoLicenca)+' ao resultado do Ano 5, por redução de custo e não por receita nova. ' : '')+
     'Com múltiplo de saída de <strong>'+fmtX(S.multiploSaida,0)+'</strong> e '+fmtPct(S.pctVendido,0)+' de participação vendida, os '+fmtMi(M.investTotal)+' investidos se transformam em '+
     '<strong>'+fmtMi(M.participacao)+'</strong>, o equivalente a '+fmtX(M.moicTotal)+' o capital e '+fmtPct(M.tirTotal,1)+' ao ano.';
@@ -1802,12 +1855,12 @@ function painelMercado(){
 
   if(S.remessasOn) h += cartaoMercado({
     id:'remessas', titulo:'TPV Frete e Seguro', cor:CORES.remessas,
-    tam: fmtBi(tamFreteSeguro(),0), fonteTam: fmtPct(pctFreteSeguro(),1)+' sobre o COMEX brasileiro de '+fmtBi(MERCADO.tamComex.valor,0)+' — '+MERCADO.tamComex.fonte,
-    sam: fmtBi(samFreteSeguro(),1), fonteSam: fmtPct(pctFreteSeguro(),1)+' sobre o COMEX de micro, pequenas e médias ('+fmtBi(MERCADO.samComexMpe.valor+MERCADO.samComexMedias.valor,0)+')',
+    tam: fmtBi(tamFreteSeguro(),0), fonteTam: fmtPct(pctFreteSeguro(),1)+' sobre a importação brasileira ('+fmtPct(PART_IMP_NACIONAL,1)+' de '+fmtBi(MERCADO.tamComex.valor,0)+' de COMEX) — '+MERCADO.tamComex.fonte,
+    sam: fmtBi(samFreteSeguro(),2), fonteSam: fmtBi(samFreteSeguroMpe(),2)+' de micro e pequenas (importação '+fmtPct(partImpMpe(),1)+', observada) + '+fmtBi(samFreteSeguroMed(),2)+' de médias (importação '+fmtPct(partImpMed(),1)+', estimada)',
     som: fmtBi(M.a5.tpvRem), pen: M.pen.remessas,
-    extra: '<div class="metrica"><div class="metrica-rot">Frete e seguro gerados pelo COMEX '+htmlAjuda('freteSeguro')+'</div>'+
+    extra: '<div class="metrica"><div class="metrica-rot">Frete e seguro gerados pela importação '+htmlAjuda('freteSeguro')+'</div>'+
            '<div class="metrica-val">'+fmtBi(M.a5.tpvFreteSeguro)+'</div>'+
-           '<div class="metrica-sub">'+fmtPct(pctFreteSeguro(),1)+' sobre '+fmtBi(M.a5.tpvComex)+' de COMEX</div></div>'+
+           '<div class="metrica-sub">'+fmtPct(pctFreteSeguro(),1)+' sobre '+fmtBi(M.a5.tpvImportacao)+' de importação — '+fmtPct(partImpCarteira(),1)+' do COMEX da carteira, ponderando '+fmtPct(partImpMpe(),1)+' das MPE e '+fmtPct(partImpMed(),1)+' das médias</div></div>'+
            '<div class="metrica"><div class="metrica-rot">Captura do fluxo</div>'+
            '<div class="metrica-val">'+fmtPct(S.capturaRem,0)+'</div>'+
            '<div class="metrica-sub">sem base de clientes própria — mesmos clientes de COMEX</div></div>'+
@@ -2662,7 +2715,9 @@ function premissasLista(){
     ['Ticket capturado da média (R$ mil/ano)', S.tkMed5],
     ['Captura da carteira da média', M.capturaMed],
     ['Take rate COMEX — médias', S.takeMed],
-    ['Frete + seguro sobre o TPV COMEX', pctFreteSeguro()],
+    ['Frete + seguro sobre a importação', pctFreteSeguro()],
+    ['Parcela importadora — MPE', partImpMpe()],
+    ['Parcela importadora — médias', partImpMed()],
     ['Captura do frete e seguro', S.capturaRem],
     ['Take rate frete e seguro', S.takeRem],
     ['Vertical cripto ligada', S.criptoOn?'Sim':'Não'],
@@ -2789,7 +2844,9 @@ function exportarXlsx(){
   var mk = [['Vertical','TAM (R$ bi)','SAM (R$ bi)','SOM Ano 5 (R$ bi)','Penetração','Fonte']];
   mk.push(['COMEX — micro e pequenas', MERCADO.tamComex.valor, MERCADO.samComexMpe.valor, M.a5.tpvComexMPE, M.pen.comexValor, MERCADO.samComexMpe.fonte]);
   mk.push(['COMEX — médias', MERCADO.tamComex.valor, MERCADO.samComexMedias.valor, M.a5.tpvComexMed, M.pen.medias, MERCADO.samComexMedias.fonte]);
-  mk.push(['Frete e seguro', tamFreteSeguro(), samFreteSeguro(), M.a5.tpvRem, M.pen.remessas, fmtPct(pctFreteSeguro(),1)+' sobre o COMEX — '+MERCADO.tamComex.fonte]);
+  mk.push(['Frete e seguro', tamFreteSeguro(), samFreteSeguro(), M.a5.tpvRem, M.pen.remessas, fmtPct(pctFreteSeguro(),1)+' sobre a importação — MPE '+fmtPct(partImpMpe(),1)+' (observada), médias '+fmtPct(partImpMed(),1)+' (estimada)']);
+  mk.push(['  frete e seguro — micro e pequenas', '', samFreteSeguroMpe(), '', '', MERCADO.partImpMpe.fonte]);
+  mk.push(['  frete e seguro — médias', '', samFreteSeguroMed(), '', '', MERCADO.partImpMed.fonte]);
   mk.push(['  ref.: remessas (BP, conta de serviços)', MERCADO.tamRemessas.valor, MERCADO.tamRemessasPjMin.valor, '', '', MERCADO.tamRemessas.fonte]);
   mk.push(['Cripto', MERCADO.tamCripto.valor, MERCADO.samCripto.valor, M.a5.tpvCripto, M.pen.cripto, MERCADO.tamCripto.fonte]);
   mk.push([]);
