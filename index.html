@@ -366,10 +366,7 @@ details.ajuda-bloco .conteudo{font-size:12.5px; color:#6B7574; line-height:1.55;
       <rect class="painel-aberto" x="2.6" y="3.6" width="2.3" height="8.8" rx="1" fill="currentColor" opacity="0"/>
     </svg>
   </button>
-  <div class="segmentado" role="group" aria-label="Modo de exibição">
-    <button id="modoApresentacao" data-testid="modo-apresentacao" aria-pressed="true">Apresentação</button>
-    <button id="modoAvancado" data-testid="modo-avancado" aria-pressed="false">Avançado</button>
-  </div>
+
   <button class="btn btn-pequeno" id="btnGlossario" data-testid="btn-glossario" aria-expanded="false">Glossário</button>
   <button class="btn btn-pequeno" id="btnSalvar" data-testid="btn-salvar-cenario">Salvar <span class="rot-longo">cenário</span></button>
   <button class="btn btn-pequeno" id="btnXlsx" data-testid="btn-exportar-xlsx">Exportar <span class="rot-longo">planilha</span></button>
@@ -386,7 +383,7 @@ details.ajuda-bloco .conteudo{font-size:12.5px; color:#6B7574; line-height:1.55;
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.07-18</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.08-5</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -472,6 +469,14 @@ var FRETE_PCT  = 0.070;
 var SEGURO_PCT = 0.005;
 function pctFreteSeguro(){ return FRETE_PCT + SEGURO_PCT; }
 
+/* Mercado de frete e seguro. Não é a conta de serviços do Balanço de Pagamentos —
+   é a fatia que o próprio comércio exterior gera, pela mesma aritmética de 7,5%.
+   Derivado, não digitado: acompanha qualquer revisão do TAM/SAM de COMEX.
+   Os números de remessas continuam em MERCADO e vivem no tooltip, como referência
+   do mercado maior em que frete e seguro estão contidos. */
+function tamFreteSeguro(){ return MERCADO.tamComex.valor * pctFreteSeguro(); }
+function samFreteSeguro(){ return (MERCADO.samComexMpe.valor + MERCADO.samComexMedias.valor) * pctFreteSeguro(); }
+
 var APORTE_PRIMARIO_PADRAO   = 12;   // R$ milhões
 var APORTE_SECUNDARIO_PADRAO =  5;   // R$ milhões
 function aporteP(){ return (S && isFinite(S.aporteP)) ? S.aporteP : APORTE_PRIMARIO_PADRAO; }
@@ -504,7 +509,6 @@ function sincronizarDerivados(){
 
 function estadoPadrao(){
   return {
-    modo:'apresentacao',
     // COMEX
     mpeOn:true, medOn:true,
     clientesMPE5:4000, tkMPE5:650, dedupOn:false, universoMpeUnico:33600, capturaMpeIn:0.6894,
@@ -742,7 +746,7 @@ function calcular(){
     comexContagem: S.clientesMPE5 / MERCADO.universoMpe.valor,
     comexValor:    a5.tpvComexMPE / MERCADO.samComexMpe.valor,
     medias:        a5.tpvComexMed / MERCADO.samComexMedias.valor,
-    remessas:      a5.tpvRem / MERCADO.tamRemessas.valor,
+    remessas:      a5.tpvRem / samFreteSeguro(),
     cripto:        a5.tpvCripto / MERCADO.samCripto.valor
   };
   m.tkUniverso   = MERCADO.samComexMpe.valor * 1e6 / MERCADO.universoMpe.valor;  // R$ mil por empresa
@@ -933,7 +937,7 @@ var TIPS = {
   take: function(){ return '<b>Take rate</b><br><span style="font-size:11px;color:#9AAAAB">taxa de captura sobre o volume</span><br><br>'+
     'O percentual que a empresa cobra sobre o valor movimentado pelo cliente.<br><br>'+
     'COMEX: <b>'+fmtPct(S.takeComex,2)+' all-in</b> — "all-in" significa preço fechado, com tudo incluído, sem tarifas somadas depois<br>'+
-    'Remessas: '+fmtPct(S.takeRem,2)+' · Cripto (OTC e fiat↔cripto): '+fmtPct(S.takeCripto,2); },
+    'Frete e seguro: '+fmtPct(S.takeRem,2)+' · Cripto (OTC e fiat↔cripto): '+fmtPct(S.takeCripto,2); },
 
   receita: function(){ return '<b>Receita bruta</b><br><br>O que a empresa fatura antes de descontar qualquer custo.'+
     '<span class="tip-form">volume × take rate de cada vertical</span>'+
@@ -1003,7 +1007,7 @@ var TIPS = {
 
   tam: function(){ return '<b>TAM</b><br><span style="font-size:11px;color:#9AAAAB">Total Addressable Market — mercado total endereçável</span><br><br>'+
     'O tamanho total do mercado, se toda a demanda existente fosse atendida por alguém.<br><br>'+
-    'COMEX: '+fmtBi(MERCADO.tamComex.valor,0)+'<br>Remessas: '+fmtBi(MERCADO.tamRemessas.valor,0)+'<br>Cripto: '+fmtBi(MERCADO.tamCripto.valor,1)+
+    'COMEX: '+fmtBi(MERCADO.tamComex.valor,0)+'<br>Frete e seguro: '+fmtBi(tamFreteSeguro(),0)+'<br>Cripto: '+fmtBi(MERCADO.tamCripto.valor,1)+
     '<span class="tip-fonte">Fontes: '+MERCADO.tamComex.fonte+' · '+MERCADO.tamRemessas.fonte+' · '+MERCADO.tamCripto.fonte+'</span>'; },
 
   sam: function(){ return '<b>SAM</b><br><span style="font-size:11px;color:#9AAAAB">Serviceable Available Market — mercado atendível</span><br><br>'+
@@ -1015,7 +1019,7 @@ var TIPS = {
 
   som: function(){ return '<b>SOM</b><br><span style="font-size:11px;color:#9AAAAB">Serviceable Obtainable Market — mercado capturável</span><br><br>'+
     'O quanto a empresa projeta capturar de fato, dentro do que consegue atender.<br><br>'+
-    'Ano 5: <b>'+fmtBi(M.a5.tpvTotal)+'</b> de volume, sendo '+fmtBi(M.a5.tpvComex)+' em COMEX e '+fmtBi(M.a5.tpvRem)+' em remessas'+
+    'Ano 5: <b>'+fmtBi(M.a5.tpvTotal)+'</b> de volume, sendo '+fmtBi(M.a5.tpvComex)+' em COMEX e '+fmtBi(M.a5.tpvRem)+' em frete e seguro'+
     (S.criptoOn ? ' e '+fmtBi(M.a5.tpvCripto)+' em cripto' : ''); },
 
   penetracao: function(){ return '<b>Penetração de mercado</b><br><br>Que fatia do mercado o plano projeta ocupar.'+
@@ -1059,7 +1063,12 @@ var TIPS = {
     'Toda operação de comércio exterior carrega frete e seguro internacionais, pagos ao exterior. É despesa da própria importação, não um serviço à parte.'+
     '<span class="tip-form">'+fmtPct(FRETE_PCT,1)+' de frete + '+fmtPct(SEGURO_PCT,1)+' de seguro = '+fmtPct(pctFreteSeguro(),1)+' do TPV de COMEX</span>'+
     'Ano 5: '+fmtBi(M.a5.tpvComex)+' de COMEX geram <b>'+fmtBi(M.a5.tpvFreteSeguro)+'</b> de frete e seguro. Com captura de '+fmtPct(S.capturaRem,0)+', passam pela plataforma <b>'+fmtBi(M.a5.tpvRem)+'</b>.<br><br>'+
-    'O percentual é premissa fixa e aritmética. O que se decide é quanto desse fluxo a BROSBNK executa — e são os mesmos clientes de COMEX, sem aquisição adicional.'; },
+    'O percentual é premissa fixa e aritmética. O que se decide é quanto desse fluxo a BROSBNK executa — e são os mesmos clientes de COMEX, sem aquisição adicional.'+
+    '<span class="tip-form">TAM: '+fmtPct(pctFreteSeguro(),1)+' × '+fmtBi(MERCADO.tamComex.valor,0)+' de COMEX = '+fmtBi(tamFreteSeguro(),0)+'<br>'+
+    'SAM: '+fmtPct(pctFreteSeguro(),1)+' × '+fmtBi(MERCADO.samComexMpe.valor+MERCADO.samComexMedias.valor,0)+' de COMEX de MPE e médias = '+fmtBi(samFreteSeguro(),1)+'</span>'+
+    '<b>Por que não usamos o mercado de remessas</b><br>'+
+    'Frete e seguro pagos ao exterior entram na conta de serviços do Balanço de Pagamentos, junto com royalties, viagens, licenças e tudo mais. Esse mercado é de '+fmtBi(MERCADO.tamRemessas.valor,0)+' no total e '+fmtBi(MERCADO.tamRemessasPjMin.valor,0)+'–'+fmtBi(MERCADO.tamRemessasPjMax.valor,0)+' em pessoa jurídica. Medir a penetração contra ele infla o denominador com fluxos que a BROSBNK não disputa e faz o número parecer pequeno por construção.'+
+    '<span class="tip-fonte">Referência do mercado maior: '+MERCADO.tamRemessas.fonte+'</span>'; },
 
   takeEfetiva: function(){ return '<b>Take rate efetiva</b><br><br>'+
     'O preço médio que a operação de fato pratica: toda a receita dividida por todo o volume. Não é uma tarifa cobrada de ninguém — é o resultado da mistura entre as verticais.'+
@@ -1157,7 +1166,7 @@ var CONTROLES = [
 var GRUPOS = [
   {id:'comex',    titulo:'COMEX — micro e pequenas', cor:CORES.comex,    chave:'mpeOn'},
   {id:'comexmed', titulo:'COMEX — médias empresas',  cor:CORES.comexMed, chave:'medOn'},
-  {id:'rem',      titulo:'Remessas',                 cor:CORES.remessas, chave:'remessasOn'},
+  {id:'rem',      titulo:'TPV Frete e Seguro',       cor:CORES.remessas, chave:'remessasOn'},
   {id:'cripto', titulo:'Cripto',           cor:CORES.cripto,   chave:'criptoOn'},
   {id:'lic',    titulo:'Licença própria',  cor:CORES.licenca,  chave:'licencaOn'},
   {id:'custo',  titulo:'Custos e estrutura'},
@@ -1210,13 +1219,13 @@ function aplicarSlider(c, x){
   }
 }
 
+/* Não há mais dois modos. Todo controle é visível; os que antes eram exclusivos
+   do modo Avançado passam a viver num bloco recolhido dentro do próprio grupo. */
 function visivel(c){
   if(typeof c.quando === 'function' && !c.quando()) return false;
-  if(c.modo==='ambos') return true;
-  if(c.modo==='avancado') return S.modo==='avancado';
-  if(c.modo==='apresentacao') return S.modo==='apresentacao';
   return true;
 }
+function recolhido(c){ return c.modo === 'avancado'; }
 
 /* ---------- Renderização da barra de controles ---------- */
 
@@ -1268,12 +1277,6 @@ function htmlControle(c, idx){
 function renderControles(){
   ASSINATURA_AVISOS = assinaturaAvisos();
   var h = '';
-  h += '<div class="cartao"><div class="cartao-titulo">Modo '+ (S.modo==='apresentacao'?'<span class="pill">simplificado</span>':'<span class="pill">completo</span>') +'</div>'+
-       '<div style="font-size:12.5px;line-height:1.5;color:#6B7574">'+
-       (S.modo==='apresentacao'
-         ? 'Poucos controles, linguagem direta. A curva de clientes é derivada do mercado capturável e o OPEX é ajustado por um multiplicador único.'
-         : 'Todos os controles disponíveis: OPEX por categoria, maturação do ticket por ano e destravamento manual da curva de clientes.')+
-       '</div></div>';
 
   GRUPOS.forEach(function(gr){
     var lista = CONTROLES.filter(function(c){ return c.g===gr.id && visivel(c); });
@@ -1302,15 +1305,17 @@ function renderControles(){
         h += '<div class="aviso aviso-info" data-testid="aviso-med-off">Vertical desligada: o cenário passa a considerar apenas micro e pequenas em COMEX.</div>';
       }
       if(gr.id==='rem' && !ligado){
-        h += '<div class="aviso aviso-ambar" data-testid="aviso-remessas-off">Vertical desligada: o cenário passa a ser somente COMEX. Remessas respondem por parte relevante do TPV.</div>';
+        h += '<div class="aviso aviso-ambar" data-testid="aviso-remessas-off">Vertical desligada: o cenário passa a ser somente COMEX. Frete e seguro respondem por parte relevante do TPV.</div>';
       }
     }
     if(ligado){
-      lista.forEach(function(c){
+      var principais = lista.filter(function(c){ return !recolhido(c); });
+      var extras     = lista.filter(function(c){ return  recolhido(c); });
+      principais.forEach(function(c){
         h += htmlControle(c, CONTROLES.indexOf(c));
         // no bloco de MPE, a chave de dedup e a carteira derivada entram logo após o nº de clientes
         if(gr.id==='comex' && c.k==='clientesMPE5'){
-          if(S.modo==='avancado'){
+          {
             h += '<label class="chave" style="margin:14px 0 0;--cor-vertical:'+CORES.comex+'"><input type="checkbox" data-chave="dedupOn" data-testid="chave-dedup"'+(S.dedupOn?' checked':'')+'>'+
                  '<span class="trilho"></span><span class="chave-rot">Deduplicação do universo '+htmlAjuda('universoUnico')+'</span></label>';
             h += S.dedupOn
@@ -1319,6 +1324,11 @@ function renderControles(){
           }
         }
       });
+      if(extras.length){
+        h += '<details class="ajuda-bloco"><summary>Mais parâmetros</summary><div class="conteudo" style="color:inherit">'+
+             extras.map(function(c){ return htmlControle(c, CONTROLES.indexOf(c)); }).join('')+
+             '</div></details>';
+      }
       if(gr.id==='comex' && S.clientesMPE5 > universoMpeEfetivo()){
         h += '<div class="aviso aviso-vermelho" data-testid="aviso-clientes-mpe">Mais clientes ('+fmtInt(S.clientesMPE5)+') do que empresas no universo considerado ('+fmtInt(universoMpeEfetivo())+').</div>';
       }
@@ -1347,9 +1357,10 @@ function renderControles(){
     h += '</div>';
   });
 
-  if(S.modo==='avancado'){
+  {
     // OPEX por categoria
     h += '<div class="cartao'+classeAmpliado('opex')+'" data-testid="grupo-opex"><div class="cartao-titulo">OPEX por categoria '+htmlAjuda('opex')+botaoAmpliar('opex')+'</div>'+
+         '<details class="ajuda-bloco" style="border-top:0;padding-top:0;margin-top:0"'+(CARTAO_AMPLIADO==='opex'?' open':'')+'><summary>Abrir tabela por categoria</summary><div class="conteudo" style="color:inherit">'+
          '<div style="font-size:11.5px;color:#8A9392;margin-bottom:8px">Valores em R$ mil por ano.</div>'+
          '<div class="tab-rolagem"><table class="dados" style="min-width:420px;font-size:11.5px">'+
          '<thead><tr><th>Categoria</th><th>A1</th><th>A2</th><th>A3</th><th>A4</th><th>A5</th></tr></thead><tbody>';
@@ -1363,7 +1374,7 @@ function renderControles(){
     h += '<tr class="destaque"><td>Total</td>';
     for(var i2=0;i2<5;i2++){ h += '<td data-testid="opex-total-'+(i2+1)+'">'+nf(opexBaseAno(i2)*1000,1)+'</td>'; }
     h += '</tr></tbody></table></div>'+
-         '<button class="btn btn-pequeno" style="margin-top:10px" data-acao="resetOpex" data-testid="btn-reset-opex">Restaurar OPEX do plano</button></div>';
+         '<button class="btn btn-pequeno" style="margin-top:10px" data-acao="resetOpex" data-testid="btn-reset-opex">Restaurar OPEX do plano</button></div></details></div>';
 
     // Curva
     h += '<div class="cartao'+classeAmpliado('curva')+'" data-testid="grupo-curva"><div class="cartao-titulo">Curva de entrada e maturação'+(S.curvaDestravada?botaoAmpliar('curva'):'')+'</div>'+
@@ -1567,7 +1578,7 @@ function renderKpis(){
 }
 
 function narrativa(){
-  var partes = ['COMEX', 'remessas'];
+  var partes = ['COMEX', 'frete e seguro'];
   if(S.criptoOn) partes.push('cripto');
   var lista = partes.length>2 ? partes.slice(0,-1).join(', ')+' e '+partes[partes.length-1] : partes.join(' e ');
   return 'No Ano 5 o plano projeta <strong>'+fmtInt(M.a5.totalClientes)+' clientes</strong> movimentando '+
@@ -1584,7 +1595,7 @@ function narrativa(){
 function painelResumo(){
   var comp = [
     {rot:'COMEX',           v:M.a5.tpvComex,  cor:CORES.comex},
-    {rot:'Remessas',        v:M.a5.tpvRem,    cor:CORES.remessas},
+    {rot:'Frete e seguro',  v:M.a5.tpvRem,    cor:CORES.remessas},
     {rot:'Cripto',          v:M.a5.tpvCripto, cor:CORES.cripto}
   ].filter(function(p){ return p.v>0; });
 
@@ -1630,13 +1641,13 @@ function painelPL(){
 
   h += '<tr class="grupo"><td colspan="7">Volume (TPV, R$ bilhões)</td></tr>';
   h += linhaPL('TPV COMEX','tpvComex',{tip:'tpv'});
-  h += linhaPL('TPV remessas','tpvRem');
+  h += linhaPL('TPV frete e seguro','tpvRem');
   if(S.criptoOn) h += linhaPL('TPV cripto','tpvCripto');
   h += linhaPL('TPV total','tpvTotal',{destaque:true});
 
   h += '<tr class="grupo"><td colspan="7">Receita</td></tr>';
   h += linhaPL('Receita COMEX','receitaComex');
-  h += linhaPL('Receita remessas','receitaRem');
+  h += linhaPL('Receita frete e seguro','receitaRem');
   if(S.criptoOn) h += linhaPL('Receita cripto','receitaCripto');
   h += linhaPL('Receita bruta','receitaBruta',{destaque:true, tip:'receita'});
   h += '<tr><td>Take rate efetiva '+htmlAjuda('takeEfetiva')+'</td>'+
@@ -1790,9 +1801,9 @@ function painelMercado(){
   }
 
   if(S.remessasOn) h += cartaoMercado({
-    id:'remessas', titulo:'Remessas', cor:CORES.remessas,
-    tam: fmtBi(MERCADO.tamRemessas.valor,0), fonteTam: MERCADO.tamRemessas.fonte,
-    sam: fmtBi(MERCADO.tamRemessasPjMin.valor,0)+' – '+fmtBi(MERCADO.tamRemessasPjMax.valor,0), fonteSam: 'Pessoa jurídica — '+MERCADO.tamRemessasPjMin.fonte,
+    id:'remessas', titulo:'TPV Frete e Seguro', cor:CORES.remessas,
+    tam: fmtBi(tamFreteSeguro(),0), fonteTam: fmtPct(pctFreteSeguro(),1)+' sobre o COMEX brasileiro de '+fmtBi(MERCADO.tamComex.valor,0)+' — '+MERCADO.tamComex.fonte,
+    sam: fmtBi(samFreteSeguro(),1), fonteSam: fmtPct(pctFreteSeguro(),1)+' sobre o COMEX de micro, pequenas e médias ('+fmtBi(MERCADO.samComexMpe.valor+MERCADO.samComexMedias.valor,0)+')',
     som: fmtBi(M.a5.tpvRem), pen: M.pen.remessas,
     extra: '<div class="metrica"><div class="metrica-rot">Frete e seguro gerados pelo COMEX '+htmlAjuda('freteSeguro')+'</div>'+
            '<div class="metrica-val">'+fmtBi(M.a5.tpvFreteSeguro)+'</div>'+
@@ -1817,7 +1828,7 @@ function painelMercado(){
   var partes = [
     {rot:'COMEX micro e pequenas', v:M.a5.tpvComexMPE, cor:CORES.comex},
     {rot:'COMEX médias',           v:M.a5.tpvComexMed, cor:CORES.comexMed},
-    {rot:'Remessas',               v:M.a5.tpvRem,      cor:CORES.remessas},
+    {rot:'Frete e seguro',         v:M.a5.tpvRem,      cor:CORES.remessas},
     {rot:'Cripto',                 v:M.a5.tpvCripto,   cor:CORES.cripto}
   ].filter(function(p){ return p.v>0; });
 
@@ -1886,7 +1897,7 @@ function painelClientes(){
   var series = [
     {rot:'COMEX MPE', cor:CORES.comex,    v:M.ano.map(function(o){return o.clientesMPE;})},
     {rot:'COMEX médias', cor:CORES.comexMed, v:M.ano.map(function(o){return o.clientesMed;})},
-    {rot:'Remessas', cor:CORES.remessas,  v:M.ano.map(function(o){return o.clientesRem;})}
+    {rot:'Frete e seguro', cor:CORES.remessas, v:M.ano.map(function(o){return o.clientesRem;})}
   ];
   var h = '<div class="grade2">';
   h += '<div class="cartao"><div class="cartao-titulo">Curva de clientes por vertical</div>'+
@@ -1917,7 +1928,7 @@ function painelClientes(){
        '<table class="dados" data-testid="tabela-clientes"><thead><tr><th>Linha</th><th>Ano 1</th><th>Ano 2</th><th>Ano 3</th><th>Ano 4</th><th>Ano 5</th></tr></thead><tbody>'+
        '<tr><td>Clientes COMEX — micro e pequenas</td>'+M.ano.map(function(o){return '<td>'+fmtInt(o.clientesMPE)+'</td>';}).join('')+'</tr>'+
        '<tr><td>Clientes COMEX — médias</td>'+M.ano.map(function(o){return '<td>'+fmtInt(o.clientesMed)+'</td>';}).join('')+'</tr>'+
-       '<tr><td>Clientes de remessas</td>'+M.ano.map(function(o){return '<td>'+fmtInt(o.clientesRem)+'</td>';}).join('')+'</tr>'+
+
        '<tr class="destaque"><td>Total de clientes</td>'+M.ano.map(function(o){return '<td>'+fmtInt(o.totalClientes)+'</td>';}).join('')+'</tr>'+
        '<tr><td>Clientes novos no ano</td>'+M.ano.map(function(o){return '<td>'+fmtInt(o.novosClientes)+'</td>';}).join('')+'</tr>'+
        '<tr><td>Ticket médio MPE (R$ mil)</td>'+M.ano.map(function(o){return '<td>'+nf(o.tkMPE,1)+'</td>';}).join('')+'</tr>'+
@@ -2169,8 +2180,6 @@ function renderGlossario(filtro){
 function render(){
   sincronizarDerivados();
   M = calcular();
-  document.getElementById('modoApresentacao').setAttribute('aria-pressed', S.modo==='apresentacao');
-  document.getElementById('modoAvancado').setAttribute('aria-pressed', S.modo==='avancado');
   renderControles();
   renderKpis();
   renderPaineis();
@@ -2392,9 +2401,9 @@ function executarAcao(acao, el){
   else if(acao==='gerarLink'){ gerarLink(false); }
   else if(acao==='gerarLinkTravado'){ gerarLink(true); }
   else if(acao==='copiarLink'){ copiarLink(); }
-  else if(acao==='restaurarPadrao'){ var modo=S.modo; S = estadoPadrao(); S.modo=modo; NOME_CENARIO=''; render(); }
-  else if(acao==='carregarCenario'){ var i=+el.getAttribute('data-idx'); var modoAtual=S.modo;
-    S = JSON.parse(JSON.stringify(CENARIOS[i].estado)); S.modo=modoAtual; NOME_CENARIO = CENARIOS[i].nome; render(); }
+  else if(acao==='restaurarPadrao'){ S = estadoPadrao(); NOME_CENARIO=''; render(); }
+  else if(acao==='carregarCenario'){ var i=+el.getAttribute('data-idx');
+    S = JSON.parse(JSON.stringify(CENARIOS[i].estado)); NOME_CENARIO = CENARIOS[i].nome; render(); }
   else if(acao==='tornarReferencia'){ var k=+el.getAttribute('data-idx'); definirReferencia(CENARIOS[k].estado, CENARIOS[k].nome); gravarCenarios(); render(); }
   else if(acao==='excluirCenario'){ var j=+el.getAttribute('data-idx');
     if(CENARIOS[j] && CENARIOS[j].nome===REF_ROTULO){ definirReferencia(estadoPadrao(),'padrão do plano'); }
@@ -2558,9 +2567,7 @@ function carregarCenarios(){
       }
 
       // Carregar sempre aplica algo na tela: o primeiro do arquivo.
-      var modo = S.modo;
       S = JSON.parse(JSON.stringify(primeiro.estado));
-      S.modo = modo;
       NOME_CENARIO = primeiro.nome;
       abaAtiva = novos === 1 ? 'resumo' : 'cenarios';
       gravarCenarios();
@@ -2642,7 +2649,6 @@ function lerHash(){
 
 function premissasLista(){
   return [
-    ['Modo', S.modo==='apresentacao'?'Apresentação':'Avançado'],
     ['Clientes MPE no Ano 5', S.clientesMPE5],
     ['Ticket médio MPE (R$ mil/ano)', S.tkMPE5],
     ['Clientes médios no Ano 5', S.clientesMed5],
@@ -2658,7 +2664,7 @@ function premissasLista(){
     ['Take rate COMEX — médias', S.takeMed],
     ['Frete + seguro sobre o TPV COMEX', pctFreteSeguro()],
     ['Captura do frete e seguro', S.capturaRem],
-    ['Take rate remessas', S.takeRem],
+    ['Take rate frete e seguro', S.takeRem],
     ['Vertical cripto ligada', S.criptoOn?'Sim':'Não'],
     ['TPV cripto Ano 5 (R$ bi)', S.criptoOn?S.tpvCripto5:0],
     ['Take rate cripto', S.takeCripto],
@@ -2765,7 +2771,7 @@ function exportarXlsx(){
   pl.push(['TPV total (R$ bi)'].concat(M.ano.map(function(o){return o.tpvTotal;})).concat([M.acum.tpvTotal]));
   ['receitaComex','receitaRem','receitaCripto','receitaBruta','takeEfetiva','custoFiat','custoCripto','custoExecucao',
    'tributos','margemContrib','opex','gtm','ganhoLicenca','ebitda'].forEach(function(k){
-    var nomes = {receitaComex:'Receita COMEX',receitaRem:'Receita remessas',receitaCripto:'Receita cripto',
+    var nomes = {receitaComex:'Receita COMEX',receitaRem:'Receita frete e seguro',receitaCripto:'Receita cripto',
       receitaBruta:'Receita bruta',takeEfetiva:'Take rate efetiva',custoFiat:'Custo com provedores (fiat)',custoCripto:'Custo de liquidez cripto',
       custoExecucao:'Custo de execução',tributos:'Provisão tributária',margemContrib:'Margem de contribuição',
       opex:'OPEX',gtm:'GTM',ganhoLicenca:'Ganho de licença própria',ebitda:'EBITDA'};
@@ -2783,7 +2789,8 @@ function exportarXlsx(){
   var mk = [['Vertical','TAM (R$ bi)','SAM (R$ bi)','SOM Ano 5 (R$ bi)','Penetração','Fonte']];
   mk.push(['COMEX — micro e pequenas', MERCADO.tamComex.valor, MERCADO.samComexMpe.valor, M.a5.tpvComexMPE, M.pen.comexValor, MERCADO.samComexMpe.fonte]);
   mk.push(['COMEX — médias', MERCADO.tamComex.valor, MERCADO.samComexMedias.valor, M.a5.tpvComexMed, M.pen.medias, MERCADO.samComexMedias.fonte]);
-  mk.push(['Remessas', MERCADO.tamRemessas.valor, MERCADO.tamRemessasPjMin.valor, M.a5.tpvRem, M.pen.remessas, MERCADO.tamRemessas.fonte]);
+  mk.push(['Frete e seguro', tamFreteSeguro(), samFreteSeguro(), M.a5.tpvRem, M.pen.remessas, fmtPct(pctFreteSeguro(),1)+' sobre o COMEX — '+MERCADO.tamComex.fonte]);
+  mk.push(['  ref.: remessas (BP, conta de serviços)', MERCADO.tamRemessas.valor, MERCADO.tamRemessasPjMin.valor, '', '', MERCADO.tamRemessas.fonte]);
   mk.push(['Cripto', MERCADO.tamCripto.valor, MERCADO.samCripto.valor, M.a5.tpvCripto, M.pen.cripto, MERCADO.tamCripto.fonte]);
   mk.push([]);
   mk.push(['Universo de MPEs em COMEX (empresas)', MERCADO.universoMpe.valor,'','','',MERCADO.universoMpe.fonte]);
@@ -2796,7 +2803,6 @@ function exportarXlsx(){
   var cl = [['Linha'].concat(anos)];
   cl.push(['Clientes COMEX — micro e pequenas'].concat(M.ano.map(function(o){return o.clientesMPE;})));
   cl.push(['Clientes COMEX — médias'].concat(M.ano.map(function(o){return o.clientesMed;})));
-  cl.push(['Clientes de remessas'].concat(M.ano.map(function(o){return o.clientesRem;})));
   cl.push(['Total de clientes'].concat(M.ano.map(function(o){return o.totalClientes;})));
   cl.push(['Clientes novos no ano'].concat(M.ano.map(function(o){return o.novosClientes;})));
   cl.push(['Ticket médio MPE (R$ mil)'].concat(M.ano.map(function(o){return o.tkMPE;})));
@@ -2839,6 +2845,177 @@ function exportarXlsx(){
 
 /* ---------- Exportação: PDF ---------- */
 
+/* ---------- PDF — as telas do simulador viradas documento ----------
+   O conteúdo não é redigitado aqui. Cada seção é o HTML que o próprio painel
+   produz, percorrido e traduzido: tabela da tela vira tabela nativa do PDF,
+   gráfico SVG vira imagem em alta resolução, métrica vira linha. Muda o painel,
+   muda o PDF sozinho. As tabelas continuam sendo texto de verdade — o leitor
+   copia o número em vez de olhar para uma foto dele. */
+
+var PDF_SECOES = [
+  {id:'resumo',        rot:'Resumo',                fn:function(){ return painelResumo(); }},
+  {id:'pl',            rot:'Resultado projetado',   fn:function(){ return painelPL(); }},
+  {id:'mercado',       rot:'Mercado e penetração',  fn:function(){ return painelMercado(); }},
+  {id:'clientes',      rot:'Clientes e aquisição',  fn:function(){ return painelClientes(); }},
+  {id:'retorno',       rot:'Retorno ao investidor', fn:function(){ return painelRetorno(); }},
+  {id:'sensibilidade', rot:'Sensibilidade',         fn:function(){ return painelSensibilidade(); }}
+];
+
+var PDF_ESCURO = [12,78,84], PDF_MEIO = [32,128,141], PDF_CINZA = [120,125,125], PDF_LINHA = [216,220,220];
+
+/* As fontes padrao do PDF sao WinAnsi. O que nao cabe nela vira caractere errado
+   na tela do leitor, entao trocamos antes de escrever. */
+var PDF_TROCA = [
+  [/\u2212/g,'-'], [/[\u2192\u21d2]/g,'->'], [/[\u2190\u21d0]/g,'<-'],
+  [/\u2264/g,'<='], [/\u2265/g,'>='], [/\u2248/g,'~'], [/\u2260/g,'!='],
+  [/[\u00a0\u2007\u2009\u200a\u202f]/g,' '], [/\u2022/g,'\u00b7'], [/\ufe0f/g,'']
+];
+function pdfSeguro(t){
+  t = String(t == null ? '' : t);
+  for(var i=0;i<PDF_TROCA.length;i++) t = t.replace(PDF_TROCA[i][0], PDF_TROCA[i][1]);
+  return t;
+}
+function pdfTexto(el){ return pdfSeguro(((el && el.textContent) || '')).replace(/\s+/g,' ').trim(); }
+
+/* textContent cola tudo: "COMEXR$ 3,23 bi". Aqui cada div vira uma linha e cada
+   elemento em linha ganha um espaco de folga, para o texto sair legivel. */
+function pdfTextoRico(el){
+  var linhas = [];
+  function juntar(no, buf){
+    var fs = no.childNodes;
+    for(var i=0;i<fs.length;i++){
+      var f = fs[i];
+      if(f.nodeType === 3){ buf.push(f.nodeValue || ''); continue; }
+      if(f.nodeType !== 1) continue;
+      var t = (f.tagName || '').toLowerCase();
+      if(t === 'br' || t === 'div' || t === 'p' || t === 'li' || t === 'tr' || t === 'h3' || t === 'h4'){
+        if(buf.join('').trim()){ linhas.push(buf.join('')); buf.length = 0; }
+        var b2 = [];
+        juntar(f, b2);
+        if(b2.join('').trim()) linhas.push(b2.join(''));
+        continue;
+      }
+      buf.push(' '); juntar(f, buf); buf.push(' ');
+    }
+  }
+  var raiz = [];
+  juntar(el, raiz);
+  if(raiz.join('').trim()) linhas.push(raiz.join(''));
+  return linhas.map(function(l){ return pdfSeguro(l).replace(/\s+/g,' ').trim(); })
+               .filter(function(l){ return l; }).join('\n');
+}
+function pdfClasse(el){ var c = el.getAttribute ? el.getAttribute('class') : null; return ' ' + (c||'') + ' '; }
+
+function pdfSerializarSvg(svg){
+  var c = svg.cloneNode(true);
+  c.setAttribute('xmlns','http://www.w3.org/2000/svg');
+  var vb = (c.getAttribute('viewBox')||'0 0 520 220').trim().split(/[\s,]+/).map(parseFloat);
+  var w = vb[2] || 520, h = vb[3] || 220;
+  c.setAttribute('width', w); c.setAttribute('height', h);
+  return { texto: new XMLSerializer().serializeToString(c), w:w, h:h };
+}
+
+function pdfTabela(t){
+  var cab = [], corpo = [], i, j;
+  var trsH = t.querySelectorAll('thead tr');
+  for(i=0;i<trsH.length;i++){
+    var lc = [];
+    for(j=0;j<trsH[i].children.length;j++) lc.push(pdfTexto(trsH[i].children[j]));
+    cab.push(lc);
+  }
+  var trsB = t.querySelectorAll('tbody tr');
+  for(i=0;i<trsB.length;i++){
+    var tr = trsB[i], cl = pdfClasse(tr), linha = [];
+    for(j=0;j<tr.children.length;j++){
+      var td = tr.children[j];
+      var cel = { content: pdfTexto(td) };
+      var cs = parseInt(td.getAttribute('colspan') || td.colSpan || 1, 10);
+      if(cs > 1) cel.colSpan = cs;
+      if(/ grupo /.test(cl))    cel.styles = { fontStyle:'bold', fillColor:[236,241,241], textColor:PDF_ESCURO };
+      else if(/ destaque /.test(cl)) cel.styles = { fontStyle:'bold' };
+      if(j > 0 && !/ grupo /.test(cl)) { cel.styles = cel.styles || {}; cel.styles.halign = 'right'; }
+      linha.push(cel);
+    }
+    corpo.push(linha);
+  }
+  return { cab:cab, corpo:corpo };
+}
+
+/* Percorre o painel em ordem de leitura e devolve blocos que o montador entende. */
+function pdfAndar(no, out){
+  var fs = no.children;
+  for(var i=0;i<fs.length;i++){
+    var el = fs[i], cl = pdfClasse(el), tag = (el.tagName||'').toLowerCase();
+    if(tag === 'svg'){  out.push({ t:'svg',    v:pdfSerializarSvg(el) }); continue; }
+    if(tag === 'table'){ out.push({ t:'tabela', v:pdfTabela(el) }); continue; }
+    if(/ cartao-titulo /.test(cl)){ out.push({ t:'titulo', v:pdfTexto(el) }); continue; }
+    if(/ cartao /.test(cl)){ out.push({ t:'cartao' }); pdfAndar(el, out); continue; }
+    if(/ metrica /.test(cl)){
+      var elRot = el.querySelector('.metrica-rot');
+      var sigla = elRot ? elRot.querySelector('.sigla') : null;
+      var sub   = pdfTexto(el.querySelector('.metrica-sub'));
+      var rot   = pdfTexto(elRot);
+      if(sigla){
+        var tSigla = pdfTexto(sigla);
+        rot = rot.replace(tSigla, '').replace(/\s+/g,' ').trim();
+        if(!sub) sub = tSigla;
+      }
+      out.push({ t:'metrica', rot:rot, val:pdfTexto(el.querySelector('.metrica-val')), sub:sub });
+      var dentro = el.querySelectorAll('svg');
+      for(var d2=0; d2<dentro.length; d2++) out.push({ t:'svg', v:pdfSerializarSvg(dentro[d2]) });
+      continue;
+    }
+    if(/ aviso /.test(cl)){ out.push({ t:'nota', v:pdfTextoRico(el) }); continue; }
+    if(!el.querySelector('table, svg, .cartao, .metrica')){
+      var tx = pdfTextoRico(el);
+      if(tx) out.push({ t:'texto', v:tx });
+      continue;
+    }
+    pdfAndar(el, out);
+  }
+}
+
+function pdfBlocos(html){
+  var palco = document.createElement('div');
+  palco.innerHTML = html;
+  var lixo = palco.querySelectorAll('button');
+  for(var i=lixo.length-1;i>=0;i--) if(lixo[i].parentNode) lixo[i].parentNode.removeChild(lixo[i]);
+  var out = [];
+  pdfAndar(palco, out);
+  return out;
+}
+
+/* SVG -> PNG. Os gráficos são autocontidos (cores e fontes em atributos),
+   então rasterizam sem depender do CSS da página. */
+function pdfPng(svg, escala){
+  escala = escala || 2.5;
+  return new Promise(function(res){
+    if(typeof Image === 'undefined'){ res(null); return; }
+    var img = new Image(), pronto = false;
+    function entregar(v){ if(pronto) return; pronto = true; res(v); }
+    setTimeout(function(){ entregar(null); }, 8000);
+    img.onload = function(){
+      try{
+        var cv = document.createElement('canvas');
+        cv.width  = Math.max(1, Math.round(svg.w*escala));
+        cv.height = Math.max(1, Math.round(svg.h*escala));
+        var cx = cv.getContext('2d');
+        cx.fillStyle = '#FFFFFF'; cx.fillRect(0,0,cv.width,cv.height);
+        cx.drawImage(img, 0, 0, cv.width, cv.height);
+        entregar({ dados: cv.toDataURL('image/png'), w:svg.w, h:svg.h });
+      }catch(e){ entregar(null); }
+    };
+    img.onerror = function(){ entregar(null); };
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.texto);
+  });
+}
+
+function pdfLogo(){
+  var el = document.getElementById('logoMarca');
+  if(!el) return Promise.resolve(null);
+  try{ return pdfPng(pdfSerializarSvg(el), 4); }catch(e){ return Promise.resolve(null); }
+}
+
 function exportarPdf(){
   var btnP = document.getElementById('btnPdf');
   var temPdf = function(){ return typeof window.jspdf !== 'undefined' && window.jspdf.jsPDF; };
@@ -2852,137 +3029,209 @@ function exportarPdf(){
     });
     return;
   }
-  var jsPDF = window.jspdf.jsPDF;
-  var doc = new jsPDF({unit:'pt', format:'a4'});
-  var L = 40, y = 46, W = doc.internal.pageSize.getWidth();
 
-  doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.setTextColor(12,78,84);
-  doc.text('BROSBNK', L, y);
-  doc.setFont('helvetica','normal'); doc.setFontSize(10.5); doc.setTextColor(60,60,60);
-  doc.text('Simulador do Plano de Negócios — Operação Brasil', L+86, y);
-  doc.setFontSize(8.5); doc.setTextColor(120,125,125);
-  doc.text(dataHoraBR(), W-L, y, {align:'right'});
-  y += 12;
-  if(NOME_CENARIO){
-    doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(12,78,84);
-    doc.text('Cenário: ' + NOME_CENARIO, L, y);
-    doc.setFont('helvetica','normal'); doc.setTextColor(0);
-    y += 12;
+  ocupado(btnP, true);
+  var secoes;
+  try{
+    secoes = PDF_SECOES.map(function(s){ return { rot:s.rot, blocos:pdfBlocos(s.fn()) }; });
+  }catch(e){ ocupado(btnP, false); alert('Não foi possível montar o documento: '+e.message); return; }
+
+  var svgs = [];
+  secoes.forEach(function(s){
+    s.blocos.forEach(function(b){ if(b.t==='svg'){ b.idx = svgs.length; svgs.push(b.v); } });
+  });
+
+  Promise.all([pdfLogo()].concat(svgs.map(function(v){ return pdfPng(v); }))).then(function(imgs){
+    try{ pdfMontar(imgs[0], imgs.slice(1), secoes); }
+    catch(e){ alert('Não foi possível gerar o PDF: '+e.message); }
+    ocupado(btnP, false);
+  });
+}
+
+function pdfMontar(logo, graficos, secoes){
+  var jsPDF = window.jspdf.jsPDF;
+  var doc = new jsPDF({ unit:'pt', format:'a4' });
+  var L = 40, W = doc.internal.pageSize.getWidth(), HP = doc.internal.pageSize.getHeight();
+  var LARG = W - 2*L, RODAPE = 34;
+  var c = { y: 0 };
+
+  function nova(){ doc.addPage(); c.y = 50; }
+  function espaco(alt){ if(c.y + alt > HP - RODAPE) nova(); }
+  function reset(){ doc.setFont('helvetica','normal'); doc.setFontSize(8.2); doc.setTextColor(60,60,60); }
+
+  /* ---- Capa ---- */
+  var topo = 56;
+  if(logo){
+    var lw = 128, lh = lw * logo.h / logo.w;
+    doc.addImage(logo.dados, 'PNG', L, topo, lw, lh);
+    topo += lh + 26;
+  } else {
+    doc.setFont('helvetica','bold'); doc.setFontSize(24); doc.setTextColor.apply(doc, PDF_ESCURO);
+    doc.text('BROSBNK', L, topo); topo += 30;
   }
-  doc.setDrawColor(216,220,220); doc.line(L, y, W-L, y); y += 18;
+  doc.setFont('helvetica','bold'); doc.setFontSize(19); doc.setTextColor.apply(doc, PDF_ESCURO);
+  doc.text('Plano de Negócios', L, topo); topo += 22;
+  doc.setFont('helvetica','normal'); doc.setFontSize(12); doc.setTextColor(90,95,95);
+  doc.text('Operação Brasil — projeção de cinco anos', L, topo); topo += 26;
+  doc.setDrawColor.apply(doc, PDF_LINHA); doc.line(L, topo, W-L, topo); topo += 20;
+
+  doc.setFontSize(9); doc.setTextColor.apply(doc, PDF_CINZA);
+  doc.text((NOME_CENARIO ? 'Cenário: ' + NOME_CENARIO + '   ·   ' : '') + dataHoraBR(), L, topo);
+  topo += 30;
 
   var kpis = [
     ['TPV Ano 5', fmtBi(M.a5.tpvTotal)],
     ['Receita bruta Ano 5', fmtMi(M.a5.receitaBruta)],
     ['EBITDA Ano 5', fmtMi(M.a5.ebitda)],
     ['Margem EBITDA', fmtPct(M.a5.margemEbitda,1)],
-    ['MOIC (sobre '+fmtMi(M.investTotal)+')', fmtX(M.moicTotal)],
+    ['MOIC sobre '+fmtMi(M.investTotal), fmtX(M.moicTotal)],
     ['TIR ao ano', fmtPct(M.tirTotal,1)]
   ];
-  var cw = (W-2*L)/3;
+  var cw = LARG/3;
   kpis.forEach(function(k,i){
-    var cx = L + cw*(i%3), cy = y + Math.floor(i/3)*44;
-    doc.setFontSize(7.5); doc.setTextColor(120,125,125); doc.text(k[0].toUpperCase(), cx, cy);
-    doc.setFontSize(14); doc.setTextColor(12,78,84); doc.setFont('helvetica','bold');
-    doc.text(k[1], cx, cy+16); doc.setFont('helvetica','normal');
+    var cx = L + cw*(i%3), cy = topo + Math.floor(i/3)*52;
+    doc.setFontSize(7.2); doc.setTextColor.apply(doc, PDF_CINZA);
+    doc.setFont('helvetica','normal'); doc.text(k[0].toUpperCase(), cx, cy);
+    doc.setFontSize(17); doc.setTextColor.apply(doc, PDF_ESCURO); doc.setFont('helvetica','bold');
+    doc.text(k[1], cx, cy+19);
   });
-  y += 96;
+  topo += 104;
 
-  var corpo = [];
-  function ln(rot, chave, dec){ return [rot].concat(M.ano.map(function(o){ return nf(o[chave], dec===undefined?2:dec); })).concat([nf(M.acum[chave], dec===undefined?2:dec)]); }
-  corpo.push(ln('TPV total (R$ bi)','tpvTotal'));
-  corpo.push(ln('Receita bruta (R$ mi)','receitaBruta'));
-  corpo.push(ln('Custo de execução (R$ mi)','custoExecucao'));
-  corpo.push(ln('Provisão tributária (R$ mi)','tributos'));
-  corpo.push(ln('Margem de contribuição (R$ mi)','margemContrib'));
-  corpo.push(ln('OPEX (R$ mi)','opex',3));
-  corpo.push(ln('GTM (R$ mi)','gtm',3));
-  if(S.licencaOn) corpo.push(ln('Ganho de licença (R$ mi) — a partir do mês '+mesLicencaValido(),'ganhoLicenca',3));
-  corpo.push(ln('EBITDA (R$ mi)','ebitda'));
-  corpo.push(['Margem EBITDA'].concat(M.ano.map(function(o){ return fmtPct(o.margemEbitda,1); })).concat([fmtPct(M.acum.margemEbitda,1)]));
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor.apply(doc, PDF_MEIO);
+  doc.text('CONTEÚDO', L, topo); topo += 14;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(60,60,60);
+  secoes.forEach(function(sc,i){ doc.text((i+1)+'.  '+sc.rot, L, topo); topo += 13; });
+  doc.text((secoes.length+1)+'.  Anexos — premissas e glossário', L, topo); topo += 24;
 
-  doc.autoTable({
-    startY:y, head:[['Linha','Ano 1','Ano 2','Ano 3','Ano 4','Ano 5','Acum.']], body:corpo,
-    theme:'grid', margin:{left:L,right:L},
-    styles:{fontSize:7.6, cellPadding:3, textColor:[40,37,29], lineColor:[216,220,220]},
-    headStyles:{fillColor:[12,78,84], textColor:[255,255,255], fontSize:7.6},
-    columnStyles:{0:{halign:'left',cellWidth:132},1:{halign:'right'},2:{halign:'right'},3:{halign:'right'},4:{halign:'right'},5:{halign:'right'},6:{halign:'right'}},
-    didParseCell:function(d){ if(d.row.index>=corpo.length-2 && d.section==='body'){ d.cell.styles.fontStyle='bold'; } }
-  });
-  y = doc.lastAutoTable.finalY + 16;
-
-  var penBody = [
-    ['COMEX micro e pequenas — por valor', fmtBi(M.a5.tpvComexMPE), fmtBi(MERCADO.samComexMpe.valor), fmtPct(M.pen.comexValor,2)],
-    ['COMEX micro e pequenas — por empresas', fmtInt(S.clientesMPE5), fmtInt(MERCADO.universoMpe.valor), fmtPct(M.pen.comexContagem,2)],
-    ['COMEX médias', fmtBi(M.a5.tpvComexMed), fmtBi(MERCADO.samComexMedias.valor,1), fmtPct(M.pen.medias,2)],
-    ['Remessas', fmtBi(M.a5.tpvRem), fmtBi(MERCADO.tamRemessas.valor,0), fmtPct(M.pen.remessas,2)]
-  ];
-  if(S.criptoOn) penBody.push(['Cripto', fmtBi(M.a5.tpvCripto), fmtBi(MERCADO.samCripto.valor,0), fmtPct(M.pen.cripto,2)]);
-  doc.autoTable({
-    startY:y, head:[['Penetração de mercado (Ano 5)','Projetado','Mercado atendível','Penetração']], body:penBody,
-    theme:'grid', margin:{left:L,right:L},
-    styles:{fontSize:7.6, cellPadding:3, lineColor:[216,220,220]},
-    headStyles:{fillColor:[32,128,141], textColor:[255,255,255], fontSize:7.6},
-    columnStyles:{0:{halign:'left'},1:{halign:'right'},2:{halign:'right'},3:{halign:'right'}}
-  });
-  y = doc.lastAutoTable.finalY + 16;
-
-  doc.autoTable({
-    startY:y, head:[['Retorno','Valor','Indicador','Valor']],
-    body:[
-      ['Valuation na saída', fmtMi(M.valuation), 'MOIC sobre '+fmtMi(M.investTotal), fmtX(M.moicTotal)],
-      ['Valor da participação', fmtMi(M.participacao), 'EBITDA A5 / capital primário', fmtX(M.efic.ebitdaA5)],
-      ['Participação vendida', fmtPct(S.pctVendido,0), 'TIR sobre '+fmtMi(M.investTotal), fmtPct(M.tirTotal,1)+' a.a.'],
-      ['Múltiplo de saída', fmtX(S.multiploSaida,0), 'EV de saída / capital primário', fmtX(M.efic.evSaida)],
-      ['Break-even', M.breakEvenMes?('mês '+M.breakEvenMes):(M.breakEven?('Ano '+M.breakEven):'—'), 'LTV / CAC', nf(M.ltvSobreCac,1)+'x'],
-      ['Acumulado recuperado', M.recuperacaoMes?('mês '+M.recuperacaoMes):(M.recuperacaoAno?('Ano '+M.recuperacaoAno):'—'), '', '']
-    ],
-    theme:'grid', margin:{left:L,right:L},
-    styles:{fontSize:7.6, cellPadding:3, lineColor:[216,220,220]},
-    headStyles:{fillColor:[32,128,141], textColor:[255,255,255], fontSize:7.6},
-    columnStyles:{0:{halign:'left'},1:{halign:'right'},2:{halign:'left'},3:{halign:'right'}}
-  });
-  y = doc.lastAutoTable.finalY + 14;
-
-  doc.setFontSize(7.4); doc.setTextColor(120,125,125);
-  doc.text(fmtMi(M.investTotal)+', sendo '+fmtMi(M.investPrim)+' primários e '+fmtMi(M.investSec)+' secundários.', L, y); y += 11;
-  var prem = premissasLista().filter(function(p){ return p[0]!=='Aviso'; })
-    .map(function(p){ return p[0]+': '+(typeof p[1]==='number' ? nf(p[1], Math.abs(p[1])<1 ? 4 : 2) : p[1]); }).join(' · ');
-  var linhasPrem = doc.splitTextToSize('Premissas: '+prem, W-2*L);
-  doc.text(linhasPrem, L, y); y += linhasPrem.length*8.6 + 6;
-  doc.setTextColor(12,78,84); doc.setFont('helvetica','bold');
-  doc.text(AVISO, L, y);
+  doc.setDrawColor.apply(doc, PDF_LINHA); doc.line(L, topo, W-L, topo); topo += 14;
+  doc.setFontSize(7.6); doc.setTextColor.apply(doc, PDF_ESCURO); doc.setFont('helvetica','bold');
+  doc.text(AVISO, L, topo);
   doc.setFont('helvetica','normal');
 
-  // Anexo — glossário
-  doc.addPage();
-  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(12,78,84);
-  doc.text('Anexo — Glossário', L, 46);
-  doc.autoTable({
-    startY:60,
-    head:[['Termo','Definição']],
-    body: GLOSSARIO.map(function(v){
-      return [v[0] + (v[1] ? '\n('+v[1]+')' : ''), preencherGlossario(v[2]).replace(/<[^>]+>/g,'')];
-    }),
-    theme:'grid', margin:{left:L,right:L},
-    styles:{fontSize:7.2, cellPadding:3.5, lineColor:[216,220,220], valign:'top'},
-    headStyles:{fillColor:[12,78,84], textColor:[255,255,255]},
-    columnStyles:{0:{cellWidth:104, fontStyle:'bold'},1:{halign:'left'}}
+  /* ---- Seções ---- */
+  secoes.forEach(function(sec, n){
+    nova();
+    doc.setFillColor.apply(doc, PDF_ESCURO);
+    doc.rect(L, c.y-16, LARG, 24, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(255,255,255);
+    doc.text((n+1)+'.  '+sec.rot, L+9, c.y);
+    c.y += 26;
+    pdfRenderBlocos(doc, c, sec.blocos, graficos, { L:L, LARG:LARG, W:W, HP:HP, RODAPE:RODAPE, espaco:espaco, nova:nova, reset:reset });
   });
-  var yy = doc.lastAutoTable.finalY + 14;
-  if(yy > doc.internal.pageSize.getHeight()-40){ doc.addPage(); yy = 46; }
-  doc.setFontSize(7.8); doc.setTextColor(12,78,84); doc.setFont('helvetica','bold');
-  doc.text(AVISO, L, yy);
 
-  // Rodapé em todas as páginas
+  /* ---- Anexo: premissas ---- */
+  nova();
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor.apply(doc, PDF_ESCURO);
+  doc.text('Anexo A — Premissas do cenário', L, c.y); c.y += 14;
+  doc.autoTable({
+    startY: c.y, head:[['Premissa','Valor']],
+    body: premissasLista().map(function(p){
+      var v = p[1];
+      if(typeof v === 'number') v = nf(v, Math.abs(v) < 1 ? 4 : (v % 1 === 0 ? 0 : 2));
+      return [ pdfSeguro(p[0]), pdfSeguro(v) ];
+    }),
+    theme:'grid', margin:{left:L, right:L},
+    styles:{ fontSize:7.4, cellPadding:3, lineColor:PDF_LINHA, textColor:[40,37,29] },
+    headStyles:{ fillColor:PDF_MEIO, textColor:[255,255,255], fontSize:7.4 },
+    columnStyles:{ 0:{ cellWidth: LARG*0.5 }, 1:{ halign:'right' } }
+  });
+  c.y = doc.lastAutoTable.finalY + 20;
+
+  /* ---- Anexo: glossário ---- */
+  nova();
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor.apply(doc, PDF_ESCURO);
+  doc.text('Anexo B — Glossário', L, c.y); c.y += 14;
+  doc.autoTable({
+    startY: c.y, head:[['Termo','Definição']],
+    body: GLOSSARIO.map(function(v){
+      return [ pdfSeguro(v[0] + (v[1] ? '\n('+v[1]+')' : '')), pdfSeguro(preencherGlossario(v[2]).replace(/<[^>]+>/g,'')).replace(/\s+/g,' ').trim() ];
+    }),
+    theme:'grid', margin:{left:L, right:L},
+    styles:{ fontSize:7, cellPadding:3.5, lineColor:PDF_LINHA, valign:'top', textColor:[40,37,29] },
+    headStyles:{ fillColor:PDF_ESCURO, textColor:[255,255,255] },
+    columnStyles:{ 0:{ cellWidth:104, fontStyle:'bold' } }
+  });
+
+  /* ---- Rodapé ---- */
   var total = doc.internal.getNumberOfPages();
   for(var p=1;p<=total;p++){
     doc.setPage(p);
-    doc.setFont('helvetica','normal'); doc.setFontSize(6.8); doc.setTextColor(140,145,145);
-    doc.text(AVISO + '  ·  Gerado em ' + dataHoraBR(), L, doc.internal.pageSize.getHeight()-20);
-    doc.text(p+'/'+total, W-L, doc.internal.pageSize.getHeight()-20, {align:'right'});
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.6); doc.setTextColor(140,145,145);
+    doc.text(pdfSeguro('BROSBNK · ' + AVISO + '  ·  Gerado em ' + dataHoraBR()), L, HP-20);
+    doc.text(p+'/'+total, W-L, HP-20, { align:'right' });
   }
   doc.save(nomeArquivo()+'.pdf');
+}
+
+function pdfRenderBlocos(doc, c, blocos, graficos, g){
+  var i = 0;
+  function flushMetricas(){
+    var lote = [];
+    while(i < blocos.length && blocos[i].t === 'metrica'){ lote.push(blocos[i]); i++; }
+    if(!lote.length) return false;
+    doc.autoTable({
+      startY: c.y, body: lote.map(function(m){ return [m.rot, m.val, m.sub]; }),
+      theme:'plain', margin:{ left:g.L, right:g.L },
+      styles:{ fontSize:7.6, cellPadding:{top:3,bottom:3,left:0,right:6}, textColor:[60,60,60], valign:'top' },
+      columnStyles:{
+        0:{ cellWidth: g.LARG*0.28, fontStyle:'bold', textColor:PDF_ESCURO },
+        1:{ cellWidth: g.LARG*0.16, halign:'right', fontStyle:'bold', textColor:PDF_ESCURO },
+        2:{ fontSize:6.8, textColor:PDF_CINZA }
+      },
+      didDrawPage: function(){ }
+    });
+    c.y = doc.lastAutoTable.finalY + 10;
+    return true;
+  }
+
+  while(i < blocos.length){
+    if(blocos[i].t === 'metrica'){ flushMetricas(); continue; }
+    var b = blocos[i]; i++;
+
+    if(b.t === 'cartao'){ c.y += 6; continue; }
+
+    if(b.t === 'titulo'){
+      g.espaco(30);
+      doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor.apply(doc, PDF_MEIO);
+      var lt = doc.splitTextToSize(b.v, g.LARG);
+      doc.text(lt, g.L, c.y); c.y += lt.length*11 + 6;
+      continue;
+    }
+
+    if(b.t === 'tabela'){
+      doc.autoTable({
+        startY: c.y, head: b.v.cab, body: b.v.corpo,
+        theme:'grid', margin:{ left:g.L, right:g.L },
+        styles:{ fontSize:7.2, cellPadding:2.8, lineColor:PDF_LINHA, textColor:[40,37,29], overflow:'linebreak' },
+        headStyles:{ fillColor:PDF_ESCURO, textColor:[255,255,255], fontSize:7.2, halign:'right' },
+        columnStyles:{ 0:{ halign:'left' } },
+        didParseCell: function(d){ if(d.section==='head' && d.column.index===0) d.cell.styles.halign='left'; }
+      });
+      c.y = doc.lastAutoTable.finalY + 12;
+      continue;
+    }
+
+    if(b.t === 'svg'){
+      var im = graficos[b.idx];
+      if(!im) continue;
+      var lw = Math.min(g.LARG, im.w * 0.86);
+      var lh = lw * im.h / im.w;
+      g.espaco(lh + 10);
+      doc.addImage(im.dados, 'PNG', g.L, c.y, lw, lh);
+      c.y += lh + 12;
+      continue;
+    }
+
+    if(b.t === 'nota' || b.t === 'texto'){
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(b.t === 'nota' ? 7.2 : 7.6);
+      doc.setTextColor.apply(doc, b.t === 'nota' ? PDF_MEIO : [90,95,95]);
+      var ln = doc.splitTextToSize(b.v, g.LARG);
+      g.espaco(ln.length*9.4 + 6);
+      doc.text(ln, g.L, c.y); c.y += ln.length*9.4 + 8;
+      continue;
+    }
+  }
 }
 
 /* ---------- Inicialização ---------- */
@@ -3064,8 +3313,6 @@ function fecharGavetas(){
   gav.setAttribute('aria-hidden','true');
   document.body.appendChild(gav);
 
-  document.getElementById('modoApresentacao').onclick = function(){ S.modo='apresentacao'; render(); };
-  document.getElementById('modoAvancado').onclick     = function(){ S.modo='avancado';     render(); };
   document.getElementById('btnGlossario').onclick     = function(){ alternarGaveta('gavetaGlossario'); };
   document.getElementById('fecharGlossario').onclick  = fecharGavetas;
   document.getElementById('sobreposicao').onclick     = fecharGavetas;
