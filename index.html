@@ -190,10 +190,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
 .narrativa strong{color:var(--primaria);}
 .legenda{display:flex; flex-wrap:wrap; gap:12px; font-size:11.5px; color:#6B7574; margin-top:10px;}
 .legenda i{width:10px; height:10px; border-radius:3px; display:inline-block; margin-right:5px; vertical-align:-1px;}
-.semaforo{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; padding:3px 9px; border-radius:99px;}
-.sem-verde{background:#E6F4EC; color:var(--verde);}
-.sem-ambar{background:#FDF6E7; color:var(--ambar);}
-.sem-vermelho{background:#FBEAE9; color:var(--vermelho);}
+.semaforo{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; padding:3px 9px; border-radius:99px; background:var(--bg); color:var(--primaria);}
 .metrica{padding:12px 0; border-bottom:1px solid var(--borda); display:flex; flex-direction:column; align-items:stretch;}
 .metrica:last-child{border-bottom:0;}
 .metrica-rot{display:flex; align-items:center; gap:6px; font-size:11.5px; color:#6B7574; font-weight:600; text-transform:uppercase; letter-spacing:.3px;}
@@ -224,6 +221,15 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
 .cartao.ampliado .tab-rolagem{overflow:visible;}
 .cartao.ampliado .ctl-num{width:88px !important; font-size:13px !important; padding:6px 8px !important;}
 .cartao.ampliado table.dados{font-size:13px !important;}
+details.ajuda-bloco{margin-top:12px; border-top:1px solid var(--borda); padding-top:10px;}
+details.ajuda-bloco summary{
+  cursor:pointer; font-size:12.5px; color:var(--primaria); font-weight:600;
+  list-style:none; display:flex; align-items:center; gap:6px;
+}
+details.ajuda-bloco summary::-webkit-details-marker{display:none;}
+details.ajuda-bloco summary::before{content:'›'; transition:transform .15s; display:inline-block; font-size:15px;}
+details.ajuda-bloco[open] summary::before{transform:rotate(90deg);}
+details.ajuda-bloco .conteudo{font-size:12.5px; color:#6B7574; line-height:1.55; margin-top:10px;}
 .btn-ampliar{
   border:0; background:transparent; color:#8A9392; cursor:pointer; padding:3px 5px;
   border-radius:5px; line-height:0; margin-left:auto;
@@ -380,7 +386,7 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </main>
 </div>
 
-<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.07-12</span></div>
+<div class="rodape" data-testid="aviso-rodape">Projeção gerencial. Não constitui promessa, garantia ou oferta de retorno. <span style="opacity:.55" data-testid="versao">· v2026.08.07-18</span></div>
 
 <div class="sobreposicao" id="sobreposicao"></div>
 <aside class="gaveta" id="gavetaGlossario" aria-hidden="true">
@@ -394,11 +400,23 @@ table.dados tr.selecionada td{background:#EDF4F5; font-weight:700; box-shadow:in
   </div>
 </aside>
 
+<div class="modal" id="modalLimpar">
+  <h3>Apagar todos os cenários</h3>
+  <div id="textoLimpar" style="font-size:12.5px;color:#6B7574;line-height:1.55;margin-bottom:16px"></div>
+  <div style="display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;">
+    <button class="btn" id="cancelarLimpar" data-testid="btn-cancelar-limpar">Cancelar</button>
+    <button class="btn" id="limparSemBaixar" data-testid="btn-limpar-sem-baixar">Apagar sem baixar</button>
+    <button class="btn btn-primario" id="baixarELimpar" data-testid="btn-baixar-e-limpar">Baixar e apagar</button>
+  </div>
+</div>
+
 <div class="modal" id="modalSalvar">
   <h3>Salvar cenário</h3>
   <input class="busca" id="nomeCenario" placeholder="Nome do cenário" data-testid="input-nome-cenario">
-  <label class="chave" style="margin:12px 0 6px"><input type="checkbox" id="cenarioPadrao" data-testid="chk-cenario-padrao"><span class="trilho"></span><span class="chave-rot">Usar como cenário de referência</span></label>
-  <div style="font-size:11.5px;color:#8A9392;line-height:1.5;margin-bottom:14px">A referência é a régua da comparação no Resumo. Marcar não altera o cenário que está carregado na tela.</div>
+  <label class="chave" style="margin:12px 0 4px"><input type="checkbox" id="cenarioNaBarra" data-testid="chk-cenario-barra" checked><span class="trilho"></span><span class="chave-rot">Mostrar na barra de troca rápida</span></label>
+  <div style="font-size:11.5px;color:#8A9392;line-height:1.5;margin-bottom:10px">Cenários marcados viram botões no topo da aba Cenários, para carregar com um clique.</div>
+  <label class="chave" style="margin:0 0 4px"><input type="checkbox" id="cenarioPadrao" data-testid="chk-cenario-padrao"><span class="trilho"></span><span class="chave-rot">Usar como cenário de referência</span></label>
+  <div style="font-size:11.5px;color:#8A9392;line-height:1.5;margin-bottom:14px">A referência é a régua da comparação no Resumo, marcada com ★. Só um por vez.</div>
   <div style="display:flex; gap:8px; justify-content:flex-end;">
     <button class="btn" id="cancelarSalvar">Cancelar</button>
     <button class="btn btn-primario" id="confirmarSalvar" data-testid="btn-confirmar-salvar">Salvar</button>
@@ -534,7 +552,41 @@ function botaoAmpliar(id){
 }
 function classeAmpliado(id){ return CARTAO_AMPLIADO === id ? ' ampliado' : ''; }
 
-var CENARIOS = [];        // apenas em memória — nenhum dado é gravado no navegador
+var CENARIOS = [];
+var CHAVE_ARMAZEM = 'brosbnk.cenarios.v1';
+
+/* Os cenários passam a sobreviver ao fechar a página, gravados nesta máquina.
+   Nada é enviado a servidor algum. */
+function gravarCenarios(){
+  try{
+    var pacote = { versao:1, referencia:REF_ROTULO, cenarios: CENARIOS.map(function(c){
+      return { nome:c.nome, estado:c.estado, criadoEm:c.criadoEm, padrao:!!c.padrao, comparar:c.comparar!==false };
+    })};
+    localStorage.setItem(CHAVE_ARMAZEM, JSON.stringify(pacote));
+  }catch(e){ /* modo privado ou armazenamento cheio: segue sem gravar */ }
+}
+
+function lerCenariosGravados(){
+  try{
+    var bruto = localStorage.getItem(CHAVE_ARMAZEM);
+    if(!bruto) return;
+    var pacote = JSON.parse(bruto);
+    if(!pacote || !pacote.cenarios) return;
+    pacote.cenarios.forEach(function(c){
+      if(!c || !c.estado) return;
+      var base = estadoPadrao();
+      for(var k in c.estado){ if(c.estado.hasOwnProperty(k)) base[k] = c.estado[k]; }
+      CENARIOS.push({ nome:c.nome, estado:base, m:calcularCom(base), criadoEm:c.criadoEm,
+                      padrao:!!c.padrao, comparar:c.comparar!==false });
+    });
+    if(pacote.referencia){
+      var ref = CENARIOS.filter(function(c){ return c.nome === pacote.referencia; })[0];
+      if(ref) definirReferencia(ref.estado, ref.nome);
+    }
+  }catch(e){ CENARIOS.length = 0; }
+}
+
+function apagarArmazem(){ try{ localStorage.removeItem(CHAVE_ARMAZEM); }catch(e){} }        // apenas em memória — nenhum dado é gravado no navegador
 var avisoLicenca = false; // mostrado quando a licença é desligada junto com a cripto
 var SOMENTE_LEITURA = false; // ligado quando a página é aberta por um link travado
 var abaAtiva = 'resumo';
@@ -769,6 +821,7 @@ function definirReferencia(estado, rotulo){
   REFERENCIA = calcularCom(REF_ESTADO);
 }
 definirReferencia(estadoPadrao(), 'padrão do plano');
+lerCenariosGravados();
 
 function cascataVerif(mm){
   var t = 'TPV ' + fmtBi(mm.a5.tpvTotal) +
@@ -807,22 +860,6 @@ function deltaVerif(){
          ' de EBITDA no Ano 5 em relação à referência.</b>';
 }
 
-function aplicarEscopo(qual){
-  var e = estadoPadrao();
-  e.modo = S.modo;
-  if(qual === 'cripto'){
-    e.criptoOn = true;
-  } else if(qual === 'licenca'){
-    e.criptoOn = true; e.licencaOn = true;
-  } else if(qual === 'conservador'){
-    e.clientesMPE5 = 2000; e.tkMPE5 = 565;
-    e.capturaRem = 0.25;
-    e.cac = 1500;
-    e.churn = 0.10;
-  }
-  S = e;
-  render();
-}
 
 /* ---------- 5. Glossário (texto aprovado pelo usuário) ---------- */
 
@@ -833,7 +870,7 @@ var GLOSSARIO = [
   ['CAC', 'Customer Acquisition Cost', 'Quanto custa conquistar um cliente novo, somando comercial, marketing e eventos. {CAC} no cenário atual.'],
   ['Churn', '', 'Percentual de clientes perdidos por ano. No cenário atual, {CHURN} ao ano, considerando o cliente perdido apenas após 18 meses sem operar.'],
   ['Coorte', '', 'Grupo de clientes que entrou no mesmo período. Serve para acompanhar como cada "turma" se comporta ao longo do tempo, em vez de olhar só a média geral.'],
-  ['Custo de execução', '', 'O que se paga aos parceiros para que a operação aconteça: provedor de câmbio e tarifas de liquidação. O custo com provedores tem teto contratual de 0,40% do volume; com as tarifas de liquidação, o efetivo fica em torno de 0,42%.'],
+  ['Custo de execução', '', 'O que se paga aos parceiros para que a operação aconteça: provedor de câmbio e tarifas de liquidação. A premissa do plano é {CUSTOPROV} do volume, já somadas as tarifas de liquidação.'],
   ['EBITDA', 'Earnings Before Interest, Taxes, Depreciation and Amortization', 'O quanto sobra da operação antes de contas financeiras e contábeis. Permite comparar empresas sem misturar dívida e impostos sobre lucro.'],
   ['FX', 'Foreign Exchange', 'Câmbio. A troca de uma moeda por outra.'],
   ['GTM', 'Go To Market', 'O conjunto de gastos para conquistar clientes.'],
@@ -873,6 +910,7 @@ function preencherGlossario(txt){
     .replace('{MULTIPLO}',  fmtX(S.multiploSaida,0))
     .replace('{PAYBACK}',   isFinite(M.a5.paybackDias) ? nf(M.a5.paybackDias,0)+' dias' : '—')
     .replace('{ALIQUOTA}',  fmtPct(S.aliquota,1))
+    .replace('{CUSTOPROV}', fmtPct(S.custoProvedores,2))
     .replace('{TAKE}',      fmtPct(S.takeComex,2)+' nas MPEs e '+fmtPct(S.takeMed,2)+' nas médias')
     .replace('{TIR}',       fmtPct(M.tirTotal,1))
     .replace('{DESCONTO}',  fmtPct(S.taxaDesconto,0))
@@ -903,7 +941,7 @@ var TIPS = {
 
   custoExec: function(){ return '<b>Custo de execução</b><br><br>O que a empresa paga aos parceiros para que a operação aconteça — o provedor de câmbio e as tarifas de liquidação, que é o momento em que o dinheiro efetivamente troca de mãos.'+
     '<span class="tip-form">Ano 5: '+fmtPct(S.custoProvedores,2)+' × '+fmtBi(M.a5.tpvComex+M.a5.tpvRem)+' (fiat)'+(S.criptoOn?' + '+fmtPct(S.custoLiqCripto,2)+' × '+fmtBi(M.a5.tpvCripto)+' (cripto)':'')+'</span>'+
-    'Ano 5: <b>'+fmtMi(M.a5.custoExecucao)+'</b><br><br>O custo com provedores tem teto contratual de 0,40% do volume; somadas as tarifas de liquidação, o efetivo aplicado neste cenário é de '+fmtPct(S.custoProvedores,2)+'.'; },
+    'Ano 5: <b>'+fmtMi(M.a5.custoExecucao)+'</b><br><br>A premissa do plano é de '+fmtPct(S.custoProvedores,2)+' do volume, já somadas as tarifas de liquidação.'; },
 
   tributos: function(){ return '<b>Provisão tributária</b><br><br>Reserva para impostos sobre o faturamento, separada antes de qualquer outra conta.'+
     '<span class="tip-form">Ano 5: '+fmtPct(S.aliquota,1)+' × '+fmtMi(M.a5.receitaBruta)+'</span>'+
@@ -1491,10 +1529,11 @@ function legenda(itens){
   }).join('')+'</div>';
 }
 
+/* Antes havia um semáforo com faixas de 5% e 15% rotuladas como "confortável",
+   "exige atenção" e "agressivo". Os limites não tinham fonte e o rótulo era
+   juízo apresentado como dado. Ficou só o número. */
 function semaforo(p){
-  var cls = p<=0.05 ? 'sem-verde' : (p<=0.15 ? 'sem-ambar' : 'sem-vermelho');
-  var txt = p<=0.05 ? 'confortável' : (p<=0.15 ? 'exige atenção' : 'agressivo');
-  return '<span class="semaforo '+cls+'">'+fmtPct(p,2)+' · '+txt+'</span>';
+  return '<span class="semaforo">'+fmtPct(p,2)+' do mercado atendível</span>';
 }
 
 
@@ -1785,12 +1824,7 @@ function painelMercado(){
   h += '<div class="cartao"><div class="cartao-titulo">Proporção do volume do Ano 5</div>'+
        barraEmpilhada(partes)+legenda(partes)+'</div>';
 
-  h += '<div class="cartao"><div class="cartao-titulo">Legenda do semáforo</div>'+
-       '<div style="display:flex;gap:14px;flex-wrap:wrap">'+
-       '<span class="semaforo sem-verde">até 5% · confortável</span>'+
-       '<span class="semaforo sem-ambar">de 5% a 15% · exige atenção</span>'+
-       '<span class="semaforo sem-vermelho">acima de 15% · agressivo</span></div>'+
-       '<div style="font-size:12.5px;color:#6B7574;margin-top:12px;line-height:1.55">O semáforo indica o quanto a projeção depende de conquistar uma fatia grande do mercado. Quanto menor a penetração necessária, menos o plano depende de um cenário perfeito.</div></div>';
+
 
   // ---- Consolidado de COMEX: MPE e médias lado a lado ----
   var somMpe = M.a5.tpvComexMPE, somMed = M.a5.tpvComexMed;
@@ -1837,8 +1871,7 @@ function painelMercado(){
        '<td>'+fmtPct((somMpe+somMed)/(samMpe+samMed),2)+'</td></tr>';
   h += '</tbody></table></div>';
   h += '<div style="font-size:12.5px;color:#6B7574;line-height:1.55;margin-top:12px">'+
-       'A penetração por empresas é sempre maior que a por valor, porque a BROSBNK fica com uma parte do fluxo de cada cliente e não com o total. '+
-       'A relação é direta: <b>penetração por valor = penetração por empresas × captura da carteira</b>.</div>';
+       '<b>Penetração por valor = penetração por empresas × captura da carteira.</b></div>';
   if(S.dedupOn){
     h += '<div class="aviso aviso-ambar" data-testid="aviso-base-penetracao">A penetração por empresas acima usa a base deduplicada de '+fmtInt(uniMpe)+' empresas — a mesma que define a carteira. '+
          'Sobre as '+fmtInt(MERCADO.universoMpe.valor)+' brutas seria '+fmtPct(S.clientesMPE5/MERCADO.universoMpe.valor,2)+'. '+
@@ -1932,7 +1965,7 @@ function painelRetorno(){
        '<div class="metrica-val" data-testid="efic-ev">'+fmtX(M.efic.evSaida)+'</div>'+
        '<div class="metrica-sub">'+fmtMi(M.valuation)+' ÷ '+fmtMi(M.investPrim)+' · múltiplo de '+fmtX(S.multiploSaida,0)+'</div></div>'+
        '</div>'+
-       '<div class="aviso aviso-info" data-testid="aviso-eficiencia" style="margin-top:14px">Os indicadores de eficiência de capital demonstram a relação entre o capital primário destinado à operação e os resultados projetados da empresa. Não representam MOIC, TIR ou retorno individual do investidor.</div></div>';
+       '<div class="aviso aviso-info" data-testid="aviso-eficiencia" style="margin-top:14px">Relação entre o capital primário e os resultados da empresa. <b>Não é MOIC, TIR nem retorno do investidor.</b></div></div>';
   return h;
 }
 
@@ -1966,22 +1999,27 @@ function painelCenarios(){
     '<button class="btn" data-acao="carregarCenarios" data-testid="btn-carregar-cenarios">Carregar cenários</button>'+
     (CENARIOS.length ? '<button class="btn" data-acao="limparCenarios" data-testid="btn-limpar-cenarios">Limpar lista</button>' : '')+'</div>'+
     '<input type="file" id="arquivoCenarios" accept="application/json,.json" style="display:none">'+
-    '<div class="cartao-titulo" style="margin-top:4px">Cenários por escopo</div>'+
-    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'+
-    '<button class="btn" data-acao="cenarioEscopo" data-escopo="base" data-testid="btn-escopo-base">Operação atual</button>'+
-    '<button class="btn" data-acao="cenarioEscopo" data-escopo="cripto" data-testid="btn-escopo-cripto">Com vertical cripto</button>'+
-    '<button class="btn" data-acao="cenarioEscopo" data-escopo="licenca" data-testid="btn-escopo-licenca">Com licença própria</button>'+
-    '<button class="btn" data-acao="cenarioEscopo" data-escopo="conservador" data-testid="btn-escopo-conservador">Piso conservador</button></div>'+
-    '<div style="font-size:12.5px;color:#6B7574;line-height:1.55;margin-bottom:14px">Os três primeiros são o mesmo plano com escopos diferentes de produto — não são cenários de risco. '+
-    'O <b>piso conservador</b> é o cenário de risco: menos clientes, ticket menor, CAC mais alto e churn de 10%.</div>'+
-    '<div style="font-size:12.5px;color:#6B7574;line-height:1.55">O link codifica o cenário inteiro no próprio endereço da página — não há servidor nem banco de dados envolvido. '+
-    'O <b>link editável</b> abre com os controles ativos: quem recebe pode explorar variações a partir do seu cenário. '+
-    'O <b>link travado</b> abre somente leitura, com os controles bloqueados, mostrando exatamente os números que você calculou. '+
-    'Nos dois casos aparece a faixa com a data do compartilhamento e o aviso de projeção gerencial.<br><br>'+
-    'Os cenários salvos abaixo ficam disponíveis enquanto esta janela estiver aberta. '+
-    'Para guardar de forma permanente, use <b>Baixar cenários</b> — o navegador pergunta onde salvar o arquivo. '+
-    '<b>Carregar cenários</b> traz o arquivo de volta e recalcula os resultados com o modelo atual, '+
-    'o que permite comparar cenários antigos contra premissas novas.</div>';
+    (function(){
+      var padroes = CENARIOS.map(function(c,i){ return {c:c,i:i}; }).filter(function(o){ return o.c.padrao; });
+      if(!padroes.length) return '';
+      return '<div class="cartao-titulo" style="margin-top:4px">Trocar de cenário</div>'+
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">'+
+        padroes.map(function(o){
+          var atual = (o.c.nome === NOME_CENARIO);
+          return '<button class="btn'+(atual?' btn-primario':'')+'" data-acao="carregarCenario" data-idx="'+o.i+'" '+
+                 'data-testid="atalho-cenario-'+o.i+'"'+(atual?' aria-current="true"':'')+'>'+esc(o.c.nome)+'</button>';
+        }).join('')+'</div>';
+    })()+
+    '<details class="ajuda-bloco"><summary>Como funcionam os cenários</summary><div class="conteudo">'+
+    '<b>Trocar de cenário.</b> Os botões acima carregam os cenários marcados como <b>na barra</b>. '+
+    'O que estiver em uso fica preenchido. A marcação é feita ao salvar ou depois, na lista.<br><br>'+
+    '<b>Onde ficam.</b> Os cenários são gravados nesta máquina e sobrevivem a fechar a página. Nada vai para servidor algum. '+
+    '<b>Limpar lista</b> apaga tudo.<br><br>'+
+    '<b>Links.</b> O cenário inteiro é codificado no endereço da página, sem servidor nem banco de dados. '+
+    'O <b>editável</b> abre com os controles ativos; o <b>travado</b>, somente leitura.<br><br>'+
+    '<b>Arquivos.</b> <b>Baixar cenários</b> grava as premissas num arquivo, que vai para a pasta de downloads do navegador. '+
+    '<b>Carregar cenários</b> traz o arquivo de volta e recalcula tudo com o modelo atual.'+
+    '</div></details>';
   h += '<div id="linkGerado"></div></div>';
 
   if(!CENARIOS.length){
@@ -2020,6 +2058,9 @@ function painelCenarios(){
         var ehRef = (c.nome === REF_ROTULO);
         var ehAtual = (c.nome === NOME_CENARIO);
         return '<div class="cenario-linha"'+(ehAtual?' style="background:#EDF4F5;border-radius:8px;padding-left:8px;padding-right:8px"':'')+'>'+
+               '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap" title="Mostrar na barra de troca rápida">'+
+               '<input type="checkbox" data-padrao="'+i+'" data-testid="chk-padrao-'+i+'"'+(c.padrao?' checked':'')+'>'+
+               '<span style="font-size:11.5px;color:#8A9392">na barra</span></label>'+
                '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap" title="Incluir na comparação">'+
                '<input type="checkbox" data-comparar="'+i+'" data-testid="chk-comparar-'+i+'"'+(c.comparar!==false?' checked':'')+'>'+
                '<span style="font-size:11.5px;color:#8A9392">comparar</span></label>'+
@@ -2314,9 +2355,17 @@ document.addEventListener('change', function(e){
     render();   // ao sair do campo, acerta totais, avisos e o resto do painel
     return;
   }
+  if(el.hasAttribute && el.hasAttribute('data-padrao')){
+    var ip = +el.getAttribute('data-padrao');
+    if(CENARIOS[ip]) CENARIOS[ip].padrao = el.checked;
+    gravarCenarios();
+    renderPaineis();
+    return;
+  }
   if(el.hasAttribute && el.hasAttribute('data-comparar')){
     var ic = +el.getAttribute('data-comparar');
     if(CENARIOS[ic]) CENARIOS[ic].comparar = el.checked;
+    gravarCenarios();
     renderPaineis();
     return;
   }
@@ -2333,11 +2382,7 @@ document.addEventListener('change', function(e){
 });
 
 function executarAcao(acao, el){
-  if(acao==='limparCenarios'){
-    if(CENARIOS.length && confirm('Remover os ' + CENARIOS.length + ' cenários da lista? Isso não apaga arquivos já baixados.')){
-      CENARIOS.length = 0; render();
-    }
-  }
+  if(acao==='limparCenarios'){ abrirModalLimpar(); }
   else if(acao==='baixarCenarios'){ baixarCenarios(); }
   else if(acao==='carregarCenarios'){ carregarCenarios(); }
   else if(acao==='fecharGavetas'){ fecharGavetas(); }
@@ -2348,12 +2393,12 @@ function executarAcao(acao, el){
   else if(acao==='gerarLinkTravado'){ gerarLink(true); }
   else if(acao==='copiarLink'){ copiarLink(); }
   else if(acao==='restaurarPadrao'){ var modo=S.modo; S = estadoPadrao(); S.modo=modo; NOME_CENARIO=''; render(); }
-  else if(acao==='carregarCenario'){ var i=+el.getAttribute('data-idx'); S = JSON.parse(JSON.stringify(CENARIOS[i].estado)); NOME_CENARIO = CENARIOS[i].nome; render(); }
-  else if(acao==='cenarioEscopo'){ aplicarEscopo(el.getAttribute('data-escopo')); }
-  else if(acao==='tornarReferencia'){ var k=+el.getAttribute('data-idx'); definirReferencia(CENARIOS[k].estado, CENARIOS[k].nome); render(); }
+  else if(acao==='carregarCenario'){ var i=+el.getAttribute('data-idx'); var modoAtual=S.modo;
+    S = JSON.parse(JSON.stringify(CENARIOS[i].estado)); S.modo=modoAtual; NOME_CENARIO = CENARIOS[i].nome; render(); }
+  else if(acao==='tornarReferencia'){ var k=+el.getAttribute('data-idx'); definirReferencia(CENARIOS[k].estado, CENARIOS[k].nome); gravarCenarios(); render(); }
   else if(acao==='excluirCenario'){ var j=+el.getAttribute('data-idx');
     if(CENARIOS[j] && CENARIOS[j].nome===REF_ROTULO){ definirReferencia(estadoPadrao(),'padrão do plano'); }
-    CENARIOS.splice(j,1); render(); }
+    CENARIOS.splice(j,1); gravarCenarios(); render(); }
 }
 
 /* ---------- Cenários ---------- */
@@ -2365,6 +2410,8 @@ function abrirModalSalvar(){
   inp.value = 'Cenário ' + (CENARIOS.length+1);
   var chk = document.getElementById('cenarioPadrao');
   if(chk) chk.checked = false;
+  var chkB = document.getElementById('cenarioNaBarra');
+  if(chkB) chkB.checked = true;
   inp.focus(); inp.select();
 }
 function fecharModalSalvar(){
@@ -2383,9 +2430,12 @@ function salvarCenario(){
     }
   }
   nome = nomeUnico(nome);
-  CENARIOS.push({ nome:nome, estado:estado, m:calcular(), criadoEm:dataHoraBR() });
+  var chkBarra = document.getElementById('cenarioNaBarra');
+  CENARIOS.push({ nome:nome, estado:estado, m:calcular(), criadoEm:dataHoraBR(),
+                  padrao: !chkBarra || chkBarra.checked });
   NOME_CENARIO = nome;
   if(chk && chk.checked) definirReferencia(estado, nome);
+  gravarCenarios();
   fecharModalSalvar();
   abaAtiva = 'cenarios';
   render();
@@ -2420,6 +2470,29 @@ function nomeUnico(nome){
   return nome + ' (' + i + ')';
 }
 
+function abrirModalLimpar(){
+  if(!CENARIOS.length) return;
+  var naBarra = CENARIOS.filter(function(c){ return c.padrao; }).length;
+  document.getElementById('textoLimpar').innerHTML =
+    'Você tem <b>' + CENARIOS.length + ' cenário(s)</b> salvos' +
+    (naBarra ? ', sendo ' + naBarra + ' na barra de troca rápida' : '') + '.<br><br>' +
+    'Apagar remove também o que está gravado nesta máquina, e <b>não há como desfazer</b>. ' +
+    'Baixar antes gera um arquivo que devolve tudo depois, inclusive as marcações.';
+  document.getElementById('modalLimpar').classList.add('aberto');
+  document.getElementById('sobreposicao').classList.add('aberta');
+}
+function fecharModalLimpar(){
+  document.getElementById('modalLimpar').classList.remove('aberto');
+  document.getElementById('sobreposicao').classList.remove('aberta');
+}
+function limparTudo(){
+  CENARIOS.length = 0;
+  NOME_CENARIO = '';
+  apagarArmazem();
+  fecharModalLimpar();
+  render();
+}
+
 function baixarCenarios(){
   if(!CENARIOS.length){ alert('Não há cenários salvos para baixar. Salve pelo menos um cenário antes.'); return; }
   var pacote = {
@@ -2428,14 +2501,14 @@ function baixarCenarios(){
     geradoEm: new Date().toISOString(),
     referencia: REF_ROTULO,
     cenarios: CENARIOS.map(function(c){
-      return { nome:c.nome, estado:c.estado, criadoEm:c.criadoEm };   // resultados são recalculados ao carregar
+      return { nome:c.nome, estado:c.estado, criadoEm:c.criadoEm, padrao:!!c.padrao, comparar:c.comparar!==false };
     })
   };
   var blob = new Blob([JSON.stringify(pacote, null, 2)], {type:'application/json'});
   var url  = URL.createObjectURL(blob);
   var a    = document.createElement('a');
   a.href = url;
-  a.download = (CENARIOS.length === 1 ? nomeArquivo() : 'BROSBNK_cenarios_' + new Date().toISOString().slice(0,10)) + '.json';
+  a.download = nomeArquivo() + (CENARIOS.length > 1 ? '_e_mais_' + (CENARIOS.length-1) : '') + '.json';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
 }
@@ -2470,7 +2543,9 @@ function carregarCenarios(){
         var item = { nome: nomeUnico(c.nome || ('Cenário '+(CENARIOS.length+1))),
                      estado: base,
                      m: calcularCom(base),
-                     criadoEm: c.criadoEm || dataHoraBR() };
+                     criadoEm: c.criadoEm || dataHoraBR(),
+                     padrao: c.padrao !== false,
+                     comparar: c.comparar !== false };
         CENARIOS.push(item);
         if(!primeiro) primeiro = item;
         novos++;
@@ -2488,6 +2563,7 @@ function carregarCenarios(){
       S.modo = modo;
       NOME_CENARIO = primeiro.nome;
       abaAtiva = novos === 1 ? 'resumo' : 'cenarios';
+      gravarCenarios();
       render();
       var sobra = repetidos ? ' ' + repetidos + ' cópia(s) com as mesmas premissas foram descartadas.' : '';
       alert((novos === 1
@@ -2977,6 +3053,7 @@ function fecharGavetas(){
   });
   document.getElementById('sobreposicao').classList.remove('aberta');
   fecharModalSalvar();
+  fecharModalLimpar();
 }
 
 (function init(){
@@ -2997,6 +3074,9 @@ function fecharGavetas(){
   document.getElementById('btnSalvar').onclick        = abrirModalSalvar;
   document.getElementById('cancelarSalvar').onclick   = fecharModalSalvar;
   document.getElementById('confirmarSalvar').onclick  = salvarCenario;
+  document.getElementById('cancelarLimpar').onclick   = fecharModalLimpar;
+  document.getElementById('limparSemBaixar').onclick  = limparTudo;
+  document.getElementById('baixarELimpar').onclick    = function(){ baixarCenarios(); limparTudo(); };
   document.getElementById('btnXlsx').onclick          = exportarXlsx;
   document.getElementById('btnPdf').onclick           = exportarPdf;
   document.getElementById('nomeCenario').addEventListener('keydown', function(e){ if(e.key==='Enter') salvarCenario(); });
